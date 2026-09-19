@@ -29,6 +29,9 @@
     "lucide-react": "^0.446.0",
     "date-fns": "^3.6.0"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed/index.ts"
+  },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.5",

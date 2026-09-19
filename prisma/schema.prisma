@@ -1,0 +1,134 @@
+// GATE AI — Prisma schema
+// PART 1 SCOPE ONLY: auth + canonical syllabus hierarchy.
+// Question/Test/Attempt/Mastery/DPP/Planner models are added in Parts 2–5
+// (see PROJECT_PLAN.md) — this file is extended in place, never replaced,
+// so historical migrations stay valid.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth (Part 1) — single-user / email-allowlist system, no roles/tenancy.
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  lastLogin DateTime?
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Canonical GATE syllabus (Part 1)
+// Hierarchy: SyllabusVersion -> Exam -> Subject -> Unit -> Topic -> Concept
+// Historical attempts/learning records (added in later parts) reference the
+// syllabus version active when they were created — never silently remapped.
+// ---------------------------------------------------------------------------
+
+model SyllabusVersion {
+  id        String   @id @default(cuid())
+  label     String   // e.g. "GATE CSE/IT 2027"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  exams    Exam[]
+  subjects Subject[]
+
+  @@map("syllabus_versions")
+}
+
+model Exam {
+  id                String   @id @default(cuid())
+  name              String   // e.g. "GATE CSE/IT"
+  year              Int?
+  syllabusVersionId String
+  syllabusVersion   SyllabusVersion @relation(fields: [syllabusVersionId], references: [id])
+  createdAt         DateTime @default(now())
+
+  @@index([syllabusVersionId])
+  @@map("exams")
+}
+
+model Subject {
+  id                String   @id @default(cuid())
+  syllabusVersionId String
+  syllabusVersion   SyllabusVersion @relation(fields: [syllabusVersionId], references: [id])
+  code              String   // e.g. "1" for "Discrete & Engineering Mathematics"
+  name              String
+  order             Int
+  createdAt         DateTime @default(now())
+
+  units Unit[]
+
+  @@unique([syllabusVersionId, code])
+  @@index([syllabusVersionId])
+  @@map("subjects")
+}
+
+model Unit {
+  id        String   @id @default(cuid())
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  code      String   // e.g. "1.1" for "Mathematical Logic"
+  name      String
+  order     Int
+  createdAt DateTime @default(now())
+
+  topics Topic[]
+
+  @@unique([subjectId, code])
+  @@index([subjectId])
+  @@map("units")
+}
+
+model Topic {
+  id        String   @id @default(cuid())
+  unitId    String
+  unit      Unit     @relation(fields: [unitId], references: [id])
+  name      String
+  order     Int
+  createdAt DateTime @default(now())
+
+  concepts Concept[]
+
+  @@index([unitId])
+  @@map("topics")
+}
+
+model Concept {
+  id        String   @id @default(cuid())
+  topicId   String
+  topic     Topic    @relation(fields: [topicId], references: [id])
+  name      String
+  order     Int
+  createdAt DateTime @default(now())
+
+  prerequisiteOf ConceptDependency[] @relation("PrerequisiteConcept")
+  dependsOn      ConceptDependency[] @relation("DependentConcept")
+
+  @@index([topicId])
+  @@map("concepts")
+}
+
+// Prerequisite graph — populated later (Part 3+ recommendation logic uses
+// it), schema exists from Part 1 so IDs are stable when it's filled in.
+model ConceptDependency {
+  id                     String  @id @default(cuid())
+  conceptId              String  // the dependent concept
+  concept                Concept @relation("DependentConcept", fields: [conceptId], references: [id])
+  prerequisiteConceptId  String
+  prerequisiteConcept    Concept @relation("PrerequisiteConcept", fields: [prerequisiteConceptId], references: [id])
+
+  @@unique([conceptId, prerequisiteConceptId])
+  @@map("concept_dependencies")
+}
