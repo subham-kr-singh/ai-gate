@@ -39,7 +39,10 @@ export const SYLLABUS_SUBJECTS: SyllabusSubjectSeed[] = [
       {
         code: "1.1",
         name: "Mathematical Logic",
-        concepts: [{ name: "Propositional logic" }, { name: "First-order logic" }],
+        concepts: [
+          { name: "Propositional logic" },
+          { name: "First-order logic" },
+        ],
       },
       {
         code: "1.2",
@@ -65,7 +68,11 @@ export const SYLLABUS_SUBJECTS: SyllabusSubjectSeed[] = [
       {
         code: "1.4",
         name: "Graph Theory",
-        concepts: [{ name: "Connectivity" }, { name: "Matching" }, { name: "Coloring" }],
+        concepts: [
+          { name: "Connectivity" },
+          { name: "Matching" },
+          { name: "Coloring" },
+        ],
       },
       {
         code: "1.5",
@@ -391,7 +398,11 @@ export const SYLLABUS_SUBJECTS: SyllabusSubjectSeed[] = [
       {
         code: "6.7",
         name: "Fundamental Algorithmic Topics",
-        concepts: [{ name: "Hashing" }, { name: "Sorting" }, { name: "Searching" }],
+        concepts: [
+          { name: "Hashing" },
+          { name: "Sorting" },
+          { name: "Searching" },
+        ],
       },
     ],
   },

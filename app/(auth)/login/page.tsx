@@ -25,13 +25,15 @@ export default function LoginPage() {
     setLoading(false);
 
     if (!res.ok) {
-      const body = await res.json().catch(() => ({ error: "Something went wrong." }));
+      const body = await res
+        .json()
+        .catch(() => ({ error: "Something went wrong." }));
       setError(body.error ?? "Something went wrong.");
       return;
     }
 
     const next = searchParams.get("next") ?? "/dashboard";
-    router.push(next);
+    router.push(next as any);
     router.refresh();
   }
 

@@ -9,25 +9,37 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "prisma:validate": "prisma validate",
     "seed": "tsx prisma/seed/index.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "**/*.(ts|tsx|js|jsx)": [
+      "prettier --write"
+    ],
+    "**/*.(json|md|css)": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",
+    "@tanstack/react-query": "^5.59.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "lucide-react": "^0.446.0",
     "next": "14.2.15",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "zod": "^3.23.8",
-    "zustand": "^4.5.5",
-    "@tanstack/react-query": "^5.59.0",
-    "clsx": "^2.1.1",
     "tailwind-merge": "^2.5.3",
-    "lucide-react": "^0.446.0",
-    "date-fns": "^3.6.0"
+    "zod": "^3.23.8",
+    "zustand": "^4.5.5"
   },
   "prisma": {
     "seed": "tsx prisma/seed/index.ts"
@@ -37,7 +49,12 @@
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.15",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.5.1",
     "postcss": "^8.4.47",
+    "prettier": "3.9.8",
     "prisma": "^5.20.0",
     "tailwindcss": "^3.4.13",
     "tsx": "^4.19.1",

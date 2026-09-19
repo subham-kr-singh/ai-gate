@@ -19,7 +19,9 @@ export default async function SubjectDetailPage({
 
       <header className="mt-4">
         <span className="text-xs text-slate">{subject.code}</span>
-        <h1 className="font-display text-2xl font-semibold text-fog">{subject.name}</h1>
+        <h1 className="font-display text-2xl font-semibold text-fog">
+          {subject.name}
+        </h1>
       </header>
 
       <section className="mt-6 border border-slate/30 p-6">

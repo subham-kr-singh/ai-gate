@@ -17,17 +17,21 @@ export function ConceptTree({ units }: ConceptTreeProps) {
           {i > 0 && <Divider className="my-4" />}
           <div className="flex items-baseline gap-3">
             <span className="text-xs text-slate">{unit.code}</span>
-            <h3 className="font-display text-base font-semibold text-fog">{unit.name}</h3>
+            <h3 className="font-display text-base font-semibold text-fog">
+              {unit.name}
+            </h3>
           </div>
           <ul className="mt-2 flex flex-wrap gap-2">
-            {unit.topics.flatMap((topic) => topic.concepts).map((concept) => (
-              <li
-                key={concept.id}
-                className="border border-slate/30 px-2 py-1 text-xs text-fog/80"
-              >
-                {concept.name}
-              </li>
-            ))}
+            {unit.topics
+              .flatMap((topic) => topic.concepts)
+              .map((concept) => (
+                <li
+                  key={concept.id}
+                  className="border border-slate/30 px-2 py-1 text-xs text-fog/80"
+                >
+                  {concept.name}
+                </li>
+              ))}
           </ul>
         </div>
       ))}

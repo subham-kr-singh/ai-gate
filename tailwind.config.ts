@@ -1,28 +1,30 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: ["class"],
-  content: [
-    "./app/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-  ],
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        // Drafting Table palette — see DESIGN_SYSTEM.md
+        "page-mint": "var(--color-page-mint)",
+        "page-mint-deep": "var(--color-page-mint-deep)",
+        "app-surface": "var(--color-app-surface)",
+        "panel-surface": "var(--color-panel-surface)",
+        "card-surface": "var(--color-card-surface)",
         ink: "var(--color-ink)",
-        panel: "var(--color-panel)",
-        slate: "var(--color-slate)",
-        fog: "var(--color-fog)",
-        teal: {
-          DEFAULT: "var(--color-teal)",
-          soft: "var(--color-teal-soft)",
-        },
-        amber: {
-          DEFAULT: "var(--color-amber)",
-          soft: "var(--color-amber-soft)",
-        },
-        paper: "var(--color-paper)",
+        "ink-soft": "var(--color-ink-soft)",
+        "ink-muted": "var(--color-ink-muted)",
+        line: "var(--color-line)",
+        control: "var(--color-control)",
+        coral: "var(--color-coral)",
+        lavender: "var(--color-lavender)",
+        butter: "var(--color-butter)",
+        mint: "var(--color-mint)",
+        sky: "var(--color-sky)",
+        peach: "var(--color-peach)",
+        yellow: "var(--color-yellow)",
+        rose: "var(--color-rose)",
+        teal: "var(--color-teal)",
+        amber: "var(--color-amber)",
       },
       fontFamily: {
         display: ["var(--font-display)", "system-ui", "sans-serif"],

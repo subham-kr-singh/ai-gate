@@ -45,6 +45,7 @@ gate-ai/
 ```
 
 **Command sequence for setup:**
+
 ```bash
 npm install
 cp .env.example .env        # fill DATABASE_URL etc.
@@ -489,16 +490,16 @@ docs/
 
 ## Build order summary
 
-| Part | What | Depends on |
-|---|---|---|
-| 0 | Setup (Next.js/Tailwind/Prisma install) | — |
-| 1 | Foundation — auth, syllabus, shell UI | 0 |
-| 2 | Question bank, test engine, grading | 1 |
-| 3 | Learning state — mastery, mistakes, coverage | 2 |
-| 4 | DPP engine | 3 |
-| 5 | Planner — priority, phases, FSRS flashcards | 3, 4 |
-| 6 | Mock simulator | 2, 3 |
-| 7 | AI layer — chatbot, hints, explanations | 3 (study reports), budget guard |
+| Part | What                                         | Depends on                      |
+| ---- | -------------------------------------------- | ------------------------------- |
+| 0    | Setup (Next.js/Tailwind/Prisma install)      | —                               |
+| 1    | Foundation — auth, syllabus, shell UI        | 0                               |
+| 2    | Question bank, test engine, grading          | 1                               |
+| 3    | Learning state — mastery, mistakes, coverage | 2                               |
+| 4    | DPP engine                                   | 3                               |
+| 5    | Planner — priority, phases, FSRS flashcards  | 3, 4                            |
+| 6    | Mock simulator                               | 2, 3                            |
+| 7    | AI layer — chatbot, hints, explanations      | 3 (study reports), budget guard |
 
 Each part is independently demoable per its "Done when" line above. Start
 Part 1 and Part 2 together, since the test engine needs real syllabus IDs to

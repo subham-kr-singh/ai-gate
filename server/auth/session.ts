@@ -18,14 +18,17 @@ interface SessionPayload {
 function toBase64Url(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 function fromBase64Url(value: string): Uint8Array {
-  const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(
-    value.length + ((4 - (value.length % 4)) % 4),
-    "="
-  );
+  const padded = value
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
+    .padEnd(value.length + ((4 - (value.length % 4)) % 4), "=");
   const binary = atob(padded);
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
 }
@@ -37,7 +40,7 @@ async function getKey(): Promise<CryptoKey> {
     encoder.encode(env.authSecret),
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign", "verify"]
+    ["sign", "verify"],
   );
 }
 
@@ -57,7 +60,9 @@ export async function createSessionToken(email: string): Promise<string> {
   return `${payloadPart}.${signaturePart}`;
 }
 
-export async function verifySessionToken(token: string | undefined): Promise<SessionPayload | null> {
+export async function verifySessionToken(
+  token: string | undefined,
+): Promise<SessionPayload | null> {
   if (!token) return null;
   const [payloadPart, signaturePart] = token.split(".");
   if (!payloadPart || !signaturePart) return null;
@@ -67,10 +72,17 @@ export async function verifySessionToken(token: string | undefined): Promise<Ses
     const payloadBytes = fromBase64Url(payloadPart);
     const signatureBytes = fromBase64Url(signaturePart);
 
-    const valid = await crypto.subtle.verify("HMAC", key, signatureBytes, payloadBytes);
+    const valid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      signatureBytes as any,
+      payloadBytes as any,
+    );
     if (!valid) return null;
 
-    const payload = JSON.parse(new TextDecoder().decode(payloadBytes)) as SessionPayload;
+    const payload = JSON.parse(
+      new TextDecoder().decode(payloadBytes),
+    ) as SessionPayload;
     if (payload.exp < Math.floor(Date.now() / 1000)) return null;
 
     return payload;

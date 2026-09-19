@@ -6,7 +6,7 @@ export async function GET() {
   if (!tree) {
     return NextResponse.json(
       { error: "No active syllabus version found. Run `npm run seed` first." },
-      { status: 404 }
+      { status: 404 },
     );
   }
   return NextResponse.json(tree);

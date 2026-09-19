@@ -9,7 +9,7 @@ export function SubjectCard({ subject }: SubjectCardProps) {
   const unitCount = subject.units.length;
   const conceptCount = subject.units.reduce(
     (sum, unit) => sum + unit.topics.reduce((s, t) => s + t.concepts.length, 0),
-    0
+    0,
   );
 
   return (
@@ -23,7 +23,9 @@ export function SubjectCard({ subject }: SubjectCardProps) {
           {unitCount} units, {conceptCount} concepts
         </span>
       </div>
-      <h2 className="mt-1 font-display text-lg font-semibold text-fog">{subject.name}</h2>
+      <h2 className="mt-1 font-display text-lg font-semibold text-fog">
+        {subject.name}
+      </h2>
     </Link>
   );
 }

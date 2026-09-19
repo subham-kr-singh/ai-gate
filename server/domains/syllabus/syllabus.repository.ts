@@ -45,7 +45,10 @@ export async function findSubjectById(subjectId: string) {
 }
 
 /** Resolve a natural-language reference like "OS Unit 2" or "OS-2" to a Unit row. */
-export async function findUnitByFuzzyReference(subjectName: string, unitCode: string) {
+export async function findUnitByFuzzyReference(
+  subjectName: string,
+  unitCode: string,
+) {
   return prisma.unit.findFirst({
     where: {
       code: unitCode,

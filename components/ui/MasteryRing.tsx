@@ -17,7 +17,12 @@ interface MasteryRingProps {
  * Deliberately not reused as decoration elsewhere — one ring per
  * screen, on Dashboard and Concept Detail only.
  */
-export function MasteryRing({ mastery, size = 96, label, className }: MasteryRingProps) {
+export function MasteryRing({
+  mastery,
+  size = 96,
+  label,
+  className,
+}: MasteryRingProps) {
   const r = 40;
   const circumference = 2 * Math.PI * r;
   const clamped = Math.max(0, Math.min(100, mastery));
@@ -34,7 +39,9 @@ export function MasteryRing({ mastery, size = 96, label, className }: MasteryRin
         height={size}
         className="-rotate-90"
         role="img"
-        aria-label={label ? `${label}: ${clamped}% mastery` : `${clamped}% mastery`}
+        aria-label={
+          label ? `${label}: ${clamped}% mastery` : `${clamped}% mastery`
+        }
       >
         <circle
           cx="50"
@@ -65,7 +72,9 @@ export function MasteryRing({ mastery, size = 96, label, className }: MasteryRin
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-xl font-semibold text-fog">{clamped}%</span>
+        <span className="font-display text-xl font-semibold text-fog">
+          {clamped}%
+        </span>
         {label && <span className="text-[11px] text-slate">{label}</span>}
       </div>
     </div>

@@ -63,7 +63,9 @@ async function main() {
     for (const unitSeed of subjectSeed.units) {
       unitOrder += 1;
       const unit = await prisma.unit.upsert({
-        where: { subjectId_code: { subjectId: subject.id, code: unitSeed.code } },
+        where: {
+          subjectId_code: { subjectId: subject.id, code: unitSeed.code },
+        },
         update: { name: unitSeed.name, order: unitOrder },
         create: {
           subjectId: subject.id,
@@ -74,7 +76,9 @@ async function main() {
       });
 
       // Pass-through Topic — see comment in syllabus.data.ts.
-      const existingTopic = await prisma.topic.findFirst({ where: { unitId: unit.id } });
+      const existingTopic = await prisma.topic.findFirst({
+        where: { unitId: unit.id },
+      });
       const topic = existingTopic
         ? await prisma.topic.update({
             where: { id: existingTopic.id },
@@ -97,7 +101,11 @@ async function main() {
           });
         } else {
           await prisma.concept.create({
-            data: { topicId: topic.id, name: conceptSeed.name, order: conceptOrder },
+            data: {
+              topicId: topic.id,
+              name: conceptSeed.name,
+              order: conceptOrder,
+            },
           });
         }
       }
@@ -111,11 +119,13 @@ async function main() {
     where: { subject: { syllabusVersionId: syllabusVersion.id } },
   });
   const conceptCount = await prisma.concept.count({
-    where: { topic: { unit: { subject: { syllabusVersionId: syllabusVersion.id } } } },
+    where: {
+      topic: { unit: { subject: { syllabusVersionId: syllabusVersion.id } } },
+    },
   });
 
   console.log(
-    `Seeded ${subjectCount} subjects, ${unitCount} units, ${conceptCount} concepts.`
+    `Seeded ${subjectCount} subjects, ${unitCount} units, ${conceptCount} concepts.`,
   );
 }
 

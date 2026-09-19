@@ -21,12 +21,21 @@ interface PriorityBarProps {
  * and DPP list rows. Color is semantic only: amber = due/weak,
  * teal = on-track/new, slate = snoozed. Never decorative.
  */
-export function PriorityBar({ urgency, children, className }: PriorityBarProps) {
+export function PriorityBar({
+  urgency,
+  children,
+  className,
+}: PriorityBarProps) {
   return (
-    <div className={cn("relative border-b border-slate/30 py-3 pl-4", className)}>
+    <div
+      className={cn("relative border-b border-slate/30 py-3 pl-4", className)}
+    >
       <span
         aria-hidden
-        className={cn("absolute left-0 top-0 h-full w-[3px]", urgencyColor[urgency])}
+        className={cn(
+          "absolute left-0 top-0 h-full w-[3px]",
+          urgencyColor[urgency],
+        )}
       />
       {children}
     </div>

@@ -18,7 +18,9 @@ export async function getSyllabusTree(): Promise<SyllabusTree | null> {
   };
 }
 
-export async function getSubjectDetail(subjectId: string): Promise<SubjectNode | null> {
+export async function getSubjectDetail(
+  subjectId: string,
+): Promise<SubjectNode | null> {
   const subject = await findSubjectById(subjectId);
   if (!subject) return null;
   return toSubjectNode(subject);
@@ -60,7 +62,11 @@ function toSubjectNode(subject: {
         id: topic.id,
         name: topic.name,
         order: topic.order,
-        concepts: topic.concepts.map((c) => ({ id: c.id, name: c.name, order: c.order })),
+        concepts: topic.concepts.map((c) => ({
+          id: c.id,
+          name: c.name,
+          order: c.order,
+        })),
       })),
     })),
   };

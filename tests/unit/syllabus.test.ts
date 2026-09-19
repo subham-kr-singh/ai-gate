@@ -4,7 +4,10 @@ import { GENERAL_APTITUDE_SUBJECT } from "@/prisma/seed/general-aptitude.data";
 
 describe("syllabus seed data", () => {
   it("contains exactly 55 units across all subjects (per architecture doc)", () => {
-    const unitCount = SYLLABUS_SUBJECTS.reduce((sum, s) => sum + s.units.length, 0);
+    const unitCount = SYLLABUS_SUBJECTS.reduce(
+      (sum, s) => sum + s.units.length,
+      0,
+    );
     expect(unitCount).toBe(55);
   });
 

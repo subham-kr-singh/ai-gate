@@ -17,6 +17,7 @@ shell UI. See `PROJECT_PLAN.md` for the full part-by-part plan and
 ## Setup
 
 1. **Install dependencies**
+
    ```bash
    npm install
    ```
@@ -28,26 +29,32 @@ shell UI. See `PROJECT_PLAN.md` for the full part-by-part plan and
    - the **direct/session** connection URL → `DIRECT_URL`
 
 3. **Configure environment variables**
+
    ```bash
    cp .env.example .env
    ```
+
    Fill in `DATABASE_URL`, `DIRECT_URL`, your own email(s) in
    `ALLOWED_EMAILS` (comma-separated if more than one), and generate an
    `AUTH_SECRET`:
+
    ```bash
    openssl rand -hex 32
    ```
 
 4. **Create the database schema**
+
    ```bash
    npx prisma generate
    npx prisma migrate dev --name init
    ```
 
 5. **Seed the syllabus**
+
    ```bash
    npm run seed
    ```
+
    This is idempotent — re-run it any time you edit
    `prisma/seed/syllabus.data.ts` and it will update rather than
    duplicate.

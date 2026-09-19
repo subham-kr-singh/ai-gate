@@ -14,14 +14,17 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "A valid email is required." },
+      { status: 400 },
+    );
   }
 
   const email = parsed.data.email.toLowerCase();
   if (!isEmailAllowed(email)) {
     return NextResponse.json(
       { error: "This email is not on the allowlist for this app." },
-      { status: 403 }
+      { status: 403 },
     );
   }
 

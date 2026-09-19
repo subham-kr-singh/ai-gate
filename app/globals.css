@@ -2,76 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
-/*
-  GATE AI — Drafting Table design tokens.
-  Dark-navy + teal/amber, dark-first (see DESIGN_SYSTEM.md for the plan
-  and the critique against generic AI-design defaults).
-  Component code should never hardcode a hex value — reference these
-  variables (via the Tailwind tokens in tailwind.config.ts) instead.
-*/
-
 :root {
-  /* Drafting Table palette */
-  --color-ink: #0d1321;        /* primary background */
-  --color-panel: #131b2e;      /* elevated surface */
-  --color-slate: #3a4459;      /* borders / secondary text */
-  --color-fog: #e8eaf0;        /* primary text on dark */
-  --color-teal: #0e8074;       /* progress / on-track / primary action */
-  --color-teal-soft: #0e807422;
-  --color-amber: #d98e2b;      /* urgent / due / weak — semantic only */
-  --color-amber-soft: #d98e2b22;
-  --color-paper: #f1f3ee;      /* light-mode background (cool sage, not cream) */
+  /* Environment */
+  --color-page-mint: #bfefdc;
+  --color-page-mint-deep: #a9e6cf;
+  --color-app-surface: #f8f6f2;
+  --color-panel-surface: #f1eee8;
+  --color-card-surface: #fffdfc;
+
+  /* Text & Lines */
+  --color-ink: #111111;
+  --color-ink-soft: #444444;
+  --color-ink-muted: #77736d;
+  --color-line: #e3e0da;
+  --color-control: #ece9e3;
+
+  /* GATE AI Semantic Colors */
+  --color-coral: #f4c1c4;
+  --color-lavender: #d0ccf4;
+  --color-butter: #f4deb4;
+  --color-mint: #bdebd9;
+  --color-sky: #c7e3f5;
+  --color-peach: #f4d0b8;
+  --color-yellow: #f2e7ae;
+  --color-rose: #efc9d9;
+  --color-teal: #0e8074;
+  --color-amber: #d98e2b;
 
   --font-display: "Archivo", system-ui, sans-serif;
   --font-body: "IBM Plex Sans", system-ui, sans-serif;
 
   --radius-control: 6px;
   --radius-ring: 9999px;
-  --shadow-overlay: 0 1px 0 0 var(--color-slate);
+  --shadow-overlay: 0 4px 24px 0 rgba(0, 0, 0, 0.05);
 
   --ring-circumference: 251.2; /* 2 * pi * r, r=40 */
   --ring-offset: 251.2;
 }
 
-/* Light theme override — opt-in via `.theme-light` on <html>, dark stays default */
-.theme-light {
-  --color-ink: var(--color-paper);
-  --color-panel: #ffffff;
-  --color-fog: #171b22;
-  --color-slate: #c6cbc2;
-}
-
-html {
-  color-scheme: dark;
-}
-html.theme-light {
-  color-scheme: light;
-}
-
 body {
-  background-color: var(--color-ink);
-  color: var(--color-fog);
+  background-color: var(--color-page-mint);
+  color: var(--color-ink);
   font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, .font-display {
+h1,
+h2,
+h3,
+.font-display {
   font-family: var(--font-display);
   letter-spacing: -0.01em;
 }
 
-/* Respect reduced motion globally — the one animation (mastery ring fill)
-   and any future micro-interactions must honor this. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
 }
 
-/* Visible keyboard focus everywhere — quality floor, not decoration */
 :focus-visible {
   outline: 2px solid var(--color-teal);
   outline-offset: 2px;

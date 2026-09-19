@@ -1,0 +1,11 @@
+# 1. Format the files you modified
+npx lint-staged
+
+# 2. Validate your Prisma schema syntax and relations
+npx prisma validate
+
+# 3. Run Next.js lint check on the project
+npm run lint
+
+# 4. Verify that the whole project passes typechecking
+npm run typecheck
