@@ -52,3 +52,9 @@ export function getSessionEmail(): string | null {
 }
 
 export async function getCurrentUser() { const email = getSessionEmail(); return email ? { email, id: email, name: email.split("@")[0] } : null; }
+
+export function requireUserId(): string {
+  const email = getSessionEmail();
+  if (!email) throw new Error("UNAUTHORIZED");
+  return email;
+}
