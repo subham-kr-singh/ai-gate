@@ -999,3 +999,70 @@ model MockAnswerEvent {
   @@id([mockId, seq])
   @@index([mockId, questionId])
 }
+// prisma/schema-additions-part7.prisma
+//
+// Merge these models into the main prisma/schema.prisma written in
+// Part 1. Kept as a separate reference file here so Part 7 doesn't
+// require rewriting the whole schema — copy/paste these blocks in.
+//
+// Swaps the in-memory stores in budget-guard.ts and
+// explanation.service.ts for real persistence once applied.
+
+model AIUsageLog {
+  id                 String   @id @default(cuid())
+  userId             String
+  provider           String
+  model              String
+  purpose            String   // study_report_extraction | mistake_classification | explanation | hint | eval
+  requestCount       Int      @default(1)
+  inputTokens        Int?
+  outputTokens       Int?
+  estimatedCostCents Float?
+  cacheHit           Boolean  @default(false)
+  date               String   // YYYY-MM-DD, indexed for daily-cap queries
+  createdAt          DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model AIInteraction {
+  id            String   @id @default(cuid())
+  userId        String
+  kind          String   // chat_message | mistake_suggestion | hint_request
+  input         String   @db.Text
+  outputRaw     String?  @db.Text
+  validated     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([userId, kind, createdAt])
+}
+
+// Cache for explanation.service.ts — keyed on questionId + the mastery/
+// content version so a later content edit invalidates stale explanations.
+model AIOutput {
+  id             String   @id @default(cuid())
+  questionId     String
+  kind           String   // explanation | hint_hint_1 | hint_hint_2 | ...
+  contentHash    String   // hash of (question content + trusted solution)
+  output         String   @db.Text
+  createdAt      DateTime @default(now())
+
+  @@unique([questionId, kind, contentHash])
+}
+
+// Generic background-job record (Inngest event mirror), used across
+// Parts 4/5/7 — included here since Phase C is the first part that
+// actually needs job-level AI-cost attribution (e.g. batch explanation
+// pre-generation).
+model Job {
+  id          String   @id @default(cuid())
+  type        String
+  status      String   // pending | running | succeeded | failed
+  payload     Json?
+  error       String?
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type, status])
+}
