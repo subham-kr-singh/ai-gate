@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireUser, UnauthorizedError } from "@/server/auth/require";
 import { getTree } from "@/server/domains/syllabus/syllabus.service";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     await requireUser();

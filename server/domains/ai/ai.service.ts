@@ -18,7 +18,14 @@ import type { AIUsageRecord } from "./types";
 const MODEL = process.env.LLM_MODEL ?? "gemini-1.5-flash";
 const PROVIDER = "google";
 
+import { createGoogle } from "@ai-sdk/google";
+
 function model() {
+  const apiKey = process.env.GEMINI_API_KEY ?? process.env.LLM_API_KEY;
+  if (apiKey) {
+    const customGoogle = createGoogle({ apiKey });
+    return customGoogle(MODEL);
+  }
   return google(MODEL);
 }
 

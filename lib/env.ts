@@ -6,6 +6,7 @@ const envSchema = z.object({
   AUTH_SECRET: z.string().min(16),
   ALLOWED_EMAILS: z.string().min(1),
   LLM_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
   LLM_MODEL: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
 });
