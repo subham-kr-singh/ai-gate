@@ -16,7 +16,7 @@ export function ConceptTree({ units }: ConceptTreeProps) {
         <div key={unit.id}>
           {i > 0 && <Divider className="my-4" />}
           <div className="flex items-baseline gap-3">
-            <span className="text-xs text-slate">{unit.code}</span>
+            <span className="text-xs text-slate"></span>
             <h3 className="font-display text-base font-semibold text-fog">
               {unit.name}
             </h3>

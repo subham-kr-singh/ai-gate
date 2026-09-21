@@ -1,58 +1,52 @@
-/**
- * General Aptitude section.
- *
- * NOT part of the syllabus_details.md you supplied — that file only
- * covered the 10 CSE/IT subjects (55 units). This is a placeholder built
- * from GATE's standard, publicly-documented GA structure so the "55-unit
- * + General Aptitude" scope from the architecture doc has somewhere to
- * live. Replace the concept lists below with your own breakdown whenever
- * you have one — nothing else in the app depends on these exact names.
- */
-import type { SyllabusSubjectSeed } from "./syllabus.data";
+import type { SubjectSeed } from "./syllabus.data";
 
-export const GENERAL_APTITUDE_SUBJECT: SyllabusSubjectSeed = {
+// General Aptitude — standard GATE GA structure (Verbal + Numerical/
+// Quantitative Ability). Kept as its own Subject so it slots into the
+// same Subject → Unit → Topic → Concept model without special-casing.
+// If the student's actual syllabus source lists GA differently, replace
+// this file's content directly rather than deriving it elsewhere.
+
+function unit(name: string, bullets: string[]) {
+  return { name, topics: [{ name, concepts: bullets.map((b) => ({ name: b })) }] };
+}
+
+export const generalAptitudeSubject: SubjectSeed = {
   code: "GA",
   name: "General Aptitude",
   units: [
-    {
-      code: "GA.1",
-      name: "Verbal Aptitude",
-      concepts: [
-        { name: "Grammar and sentence correction" },
-        { name: "Vocabulary" },
-        { name: "Reading comprehension" },
-        { name: "Verbal deduction" },
-      ],
-    },
-    {
-      code: "GA.2",
-      name: "Quantitative Aptitude",
-      concepts: [
-        { name: "Data interpretation" },
-        { name: "Ratio and proportion" },
-        { name: "Percentages" },
-        { name: "Permutations and combinations" },
-        { name: "Mensuration and geometry" },
-      ],
-    },
-    {
-      code: "GA.3",
-      name: "Analytical Aptitude",
-      concepts: [
-        { name: "Logical deduction" },
-        { name: "Analogies" },
-        { name: "Numerical relations" },
-        { name: "Sequences and series" },
-      ],
-    },
-    {
-      code: "GA.4",
-      name: "Spatial Aptitude",
-      concepts: [
-        { name: "Transformation of shapes" },
-        { name: "Group and assembly of figures" },
-        { name: "Paper folding and cutting" },
-      ],
-    },
+    unit("Verbal Aptitude", [
+      "English grammar",
+      "Sentence completion",
+      "Verbal analogies",
+      "Word groups",
+      "Instructions",
+      "Critical reasoning",
+      "Verbal deduction",
+    ]),
+    unit("Quantitative Aptitude", [
+      "Data interpretation",
+      "Graphs, tables, charts",
+      "Numerical computation",
+      "Numerical estimation",
+      "Numerical reasoning",
+      "Ratio and proportion",
+      "Percentages",
+      "Profit and loss",
+      "Simple and compound interest",
+      "Time, speed and distance",
+      "Permutations and combinations",
+    ]),
+    unit("Analytical Aptitude", [
+      "Logic: deduction and induction",
+      "Analogy",
+      "Numerical relations",
+      "Logical sequences",
+    ]),
+    unit("Spatial Aptitude", [
+      "Transformation of shapes",
+      "Assembling and grouping of figures",
+      "Paper folding",
+      "Cutting and rotation",
+    ]),
   ],
 };

@@ -1,35 +1,21 @@
 import { cn } from "@/lib/cn";
 
-interface ProgressBarProps {
-  value: number; // 0-100
-  tone?: "teal" | "amber";
-  label?: string;
-  className?: string;
-}
-
 export function ProgressBar({
-  value,
-  tone = "teal",
-  label,
+  percent,
+  fillClassName = "bg-ink",
   className,
-}: ProgressBarProps) {
-  const clamped = Math.max(0, Math.min(100, value));
+}: {
+  percent: number;
+  fillClassName?: string;
+  className?: string;
+}) {
+  const clamped = Math.max(0, Math.min(100, percent));
   return (
-    <div className={cn("w-full", className)}>
-      {label && (
-        <div className="mb-1 flex items-baseline justify-between text-sm">
-          <span className="text-fog">{label}</span>
-          <span className="font-display font-semibold text-fog">
-            {clamped}%
-          </span>
-        </div>
-      )}
-      <div className="h-1.5 w-full bg-slate/25">
-        <div
-          className={cn("h-full", tone === "teal" ? "bg-teal" : "bg-amber")}
-          style={{ width: `${clamped}%` }}
-        />
-      </div>
+    <div className={cn("h-1.5 w-full rounded-full bg-black/10 overflow-hidden", className)}>
+      <div
+        className={cn("h-full rounded-full animate-fill-w", fillClassName)}
+        style={{ width: `${clamped}%` }}
+      />
     </div>
   );
 }

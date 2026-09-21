@@ -1,14 +1,14 @@
-import { prisma } from "@/server/db/client";
+import { db } from "@/server/db/client";
 
 export async function findActiveSyllabusVersion() {
-  return prisma.syllabusVersion.findFirst({
+  return db.syllabusVersion.findFirst({
     where: { isActive: true },
     orderBy: { createdAt: "desc" },
   });
 }
 
-export async function findSyllabusTreeRaw(syllabusVersionId: string) {
-  return prisma.subject.findMany({
+export async function findSyllabusTreeRows(syllabusVersionId: string) {
+  return db.subject.findMany({
     where: { syllabusVersionId },
     orderBy: { order: "asc" },
     include: {
@@ -28,7 +28,7 @@ export async function findSyllabusTreeRaw(syllabusVersionId: string) {
 }
 
 export async function findSubjectById(subjectId: string) {
-  return prisma.subject.findUnique({
+  return db.subject.findUnique({
     where: { id: subjectId },
     include: {
       units: {
@@ -44,15 +44,30 @@ export async function findSubjectById(subjectId: string) {
   });
 }
 
-/** Resolve a natural-language reference like "OS Unit 2" or "OS-2" to a Unit row. */
-export async function findUnitByFuzzyReference(
-  subjectName: string,
-  unitCode: string,
-) {
-  return prisma.unit.findFirst({
-    where: {
-      code: unitCode,
-      subject: { name: { contains: subjectName, mode: "insensitive" } },
+/** All (subject, unit, topic, concept) rows flattened, for lightweight
+ * fuzzy-matching in syllabus.service#resolveEntity — avoids pulling in a
+ * search library for a few hundred rows. */
+export async function findAllEntityNames(syllabusVersionId: string) {
+  const subjects = await db.subject.findMany({
+    where: { syllabusVersionId },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      units: {
+        select: {
+          id: true,
+          name: true,
+          topics: {
+            select: {
+              id: true,
+              name: true,
+              concepts: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
     },
   });
+  return subjects;
 }

@@ -2,71 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* Environment */
-  --color-page-mint: #bfefdc;
-  --color-page-mint-deep: #a9e6cf;
-  --color-app-surface: #f8f6f2;
-  --color-panel-surface: #f1eee8;
-  --color-card-surface: #fffdfc;
-
-  /* Text & Lines */
-  --color-ink: #111111;
-  --color-ink-soft: #444444;
-  --color-ink-muted: #77736d;
-  --color-line: #e3e0da;
-  --color-control: #ece9e3;
-
-  /* GATE AI Semantic Colors */
-  --color-coral: #f4c1c4;
-  --color-lavender: #d0ccf4;
-  --color-butter: #f4deb4;
-  --color-mint: #bdebd9;
-  --color-sky: #c7e3f5;
-  --color-peach: #f4d0b8;
-  --color-yellow: #f2e7ae;
-  --color-rose: #efc9d9;
-  --color-teal: #0e8074;
-  --color-amber: #d98e2b;
-
-  --font-display: "Archivo", system-ui, sans-serif;
-  --font-body: "IBM Plex Sans", system-ui, sans-serif;
-
-  --radius-control: 6px;
-  --radius-ring: 9999px;
-  --shadow-overlay: 0 4px 24px 0 rgba(0, 0, 0, 0.05);
-
-  --ring-circumference: 251.2; /* 2 * pi * r, r=40 */
-  --ring-offset: 251.2;
-}
-
-body {
-  background-color: var(--color-page-mint);
-  color: var(--color-ink);
-  font-family: var(--font-body);
-  font-variant-numeric: tabular-nums;
-  -webkit-font-smoothing: antialiased;
-}
-
-h1,
-h2,
-h3,
-.font-display {
-  font-family: var(--font-display);
-  letter-spacing: -0.01em;
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.001ms !important;
+    animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-teal);
+  outline: 2px solid #0e8074;
   outline-offset: 2px;
 }

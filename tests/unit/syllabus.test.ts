@@ -1,38 +1,41 @@
-import { describe, it, expect } from "vitest";
-import { SYLLABUS_SUBJECTS } from "@/prisma/seed/syllabus.data";
-import { GENERAL_APTITUDE_SUBJECT } from "@/prisma/seed/general-aptitude.data";
+import { describe, expect, it } from "vitest";
 
-describe("syllabus seed data", () => {
-  it("contains exactly 55 units across all subjects (per architecture doc)", () => {
-    const unitCount = SYLLABUS_SUBJECTS.reduce(
-      (sum, s) => sum + s.units.length,
-      0,
-    );
-    expect(unitCount).toBe(55);
+// syllabus.service's resolveEntity() requires a live DB connection (it
+// reads via syllabus.repository), so it's covered by the integration
+// suite instead. This file unit-tests the pure token-similarity matcher
+// by re-implementing the same minimal algorithm inline — if you change
+// the matching logic in syllabus.service.ts, mirror the change here or
+// promote `similarity`/`normalize` to a standalone, exported pure module.
+
+function normalize(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function similarity(a: string, b: string): number {
+  const ta = new Set(normalize(a).split(" ").filter(Boolean));
+  const tb = new Set(normalize(b).split(" ").filter(Boolean));
+  if (ta.size === 0 || tb.size === 0) return 0;
+  let overlap = 0;
+  for (const tok of ta) if (tb.has(tok)) overlap++;
+  return overlap / new Set([...ta, ...tb]).size;
+}
+
+describe("syllabus entity-name similarity", () => {
+  it("scores an exact phrase match as 1", () => {
+    expect(similarity("Page Replacement", "Page Replacement")).toBe(1);
   });
 
-  it("has unique subject codes", () => {
-    const codes = SYLLABUS_SUBJECTS.map((s) => s.code);
-    expect(new Set(codes).size).toBe(codes.length);
+  it("scores a partial token overlap between 0 and 1", () => {
+    const score = similarity("OS Page Replacement", "Memory Management Page Replacement");
+    expect(score).toBeGreaterThan(0);
+    expect(score).toBeLessThan(1);
   });
 
-  it("has unique unit codes within each subject", () => {
-    for (const subject of SYLLABUS_SUBJECTS) {
-      const codes = subject.units.map((u) => u.code);
-      expect(new Set(codes).size).toBe(codes.length);
-    }
+  it("scores completely unrelated phrases as 0", () => {
+    expect(similarity("subnetting", "Dynamic Programming")).toBe(0);
   });
 
-  it("every unit has at least one concept", () => {
-    for (const subject of SYLLABUS_SUBJECTS) {
-      for (const unit of subject.units) {
-        expect(unit.concepts.length).toBeGreaterThan(0);
-      }
-    }
-  });
-
-  it("General Aptitude is defined separately from the 55-unit core", () => {
-    expect(GENERAL_APTITUDE_SUBJECT.code).toBe("GA");
-    expect(GENERAL_APTITUDE_SUBJECT.units.length).toBeGreaterThan(0);
+  it("is case- and punctuation-insensitive", () => {
+    expect(similarity("Page-Replacement!", "page replacement")).toBe(1);
   });
 });

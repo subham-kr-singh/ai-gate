@@ -1,132 +1,111 @@
-/**
- * Seed entrypoint. Run with: npm run seed
- *
- * Idempotent — safe to re-run. Upserts by natural keys (syllabus label,
- * subject/unit code, topic/concept name within parent) rather than
- * inserting blindly, so re-seeding after an edit to syllabus.data.ts
- * updates existing rows instead of duplicating them.
- */
 import { PrismaClient } from "@prisma/client";
-import { SYLLABUS_SUBJECTS } from "./syllabus.data";
-import { GENERAL_APTITUDE_SUBJECT } from "./general-aptitude.data";
+import { syllabusSubjects, type SubjectSeed } from "./syllabus.data";
+import { generalAptitudeSubject } from "./general-aptitude.data";
 
-const prisma = new PrismaClient();
+const db = new PrismaClient();
 
-const SYLLABUS_LABEL = "GATE CSE/IT — current";
+const SYLLABUS_LABEL = "GATE-CS-2027-v1";
 
-async function main() {
-  console.log(`Seeding syllabus version "${SYLLABUS_LABEL}"...`);
-
-  let syllabusVersion = await prisma.syllabusVersion.findFirst({
+async function seedSyllabus() {
+  const existing = await db.syllabusVersion.findFirst({
     where: { label: SYLLABUS_LABEL },
   });
-  syllabusVersion = syllabusVersion
-    ? await prisma.syllabusVersion.update({
-        where: { id: syllabusVersion.id },
-        data: { isActive: true },
-      })
-    : await prisma.syllabusVersion.create({
-        data: { label: SYLLABUS_LABEL, isActive: true },
-      });
-
-  const existingExam = await prisma.exam.findFirst({
-    where: { syllabusVersionId: syllabusVersion.id },
-  });
-  if (!existingExam) {
-    await prisma.exam.create({
-      data: { name: "GATE CSE/IT", syllabusVersionId: syllabusVersion.id },
-    });
+  if (existing) {
+    console.log(`Syllabus version "${SYLLABUS_LABEL}" already exists — skipping.`);
+    return existing.id;
   }
 
-  const allSubjects = [...SYLLABUS_SUBJECTS, GENERAL_APTITUDE_SUBJECT];
+  const version = await db.syllabusVersion.create({
+    data: { label: SYLLABUS_LABEL, isActive: true },
+  });
+
+  const allSubjects: SubjectSeed[] = [...syllabusSubjects, generalAptitudeSubject];
 
   let subjectOrder = 0;
-  for (const subjectSeed of allSubjects) {
+  for (const subject of allSubjects) {
     subjectOrder += 1;
-    const subject = await prisma.subject.upsert({
-      where: {
-        syllabusVersionId_code: {
-          syllabusVersionId: syllabusVersion.id,
-          code: subjectSeed.code,
-        },
-      },
-      update: { name: subjectSeed.name, order: subjectOrder },
-      create: {
-        syllabusVersionId: syllabusVersion.id,
-        code: subjectSeed.code,
-        name: subjectSeed.name,
+    const subjectRow = await db.subject.create({
+      data: {
+        syllabusVersionId: version.id,
+        code: subject.code,
+        name: subject.name,
         order: subjectOrder,
       },
     });
 
     let unitOrder = 0;
-    for (const unitSeed of subjectSeed.units) {
+    for (const unit of subject.units) {
       unitOrder += 1;
-      const unit = await prisma.unit.upsert({
-        where: {
-          subjectId_code: { subjectId: subject.id, code: unitSeed.code },
-        },
-        update: { name: unitSeed.name, order: unitOrder },
-        create: {
-          subjectId: subject.id,
-          code: unitSeed.code,
-          name: unitSeed.name,
+      const unitRow = await db.unit.create({
+        data: {
+          subjectId: subjectRow.id,
+          name: unit.name,
           order: unitOrder,
+          // Soft defaults per architecture "Maximum Unit Duration" —
+          // adjust per-unit later from observed velocity (Part 5).
+          targetDurationDays: 1,
+          maximumExtensionDays: 2,
         },
       });
 
-      // Pass-through Topic — see comment in syllabus.data.ts.
-      const existingTopic = await prisma.topic.findFirst({
-        where: { unitId: unit.id },
-      });
-      const topic = existingTopic
-        ? await prisma.topic.update({
-            where: { id: existingTopic.id },
-            data: { name: unitSeed.name, order: 1 },
-          })
-        : await prisma.topic.create({
-            data: { unitId: unit.id, name: unitSeed.name, order: 1 },
-          });
-
-      let conceptOrder = 0;
-      for (const conceptSeed of unitSeed.concepts) {
-        conceptOrder += 1;
-        const existingConcept = await prisma.concept.findFirst({
-          where: { topicId: topic.id, name: conceptSeed.name },
+      let topicOrder = 0;
+      for (const topic of unit.topics) {
+        topicOrder += 1;
+        const topicRow = await db.topic.create({
+          data: { unitId: unitRow.id, name: topic.name, order: topicOrder },
         });
-        if (existingConcept) {
-          await prisma.concept.update({
-            where: { id: existingConcept.id },
-            data: { order: conceptOrder },
-          });
-        } else {
-          await prisma.concept.create({
+
+        let conceptOrder = 0;
+        for (const concept of topic.concepts) {
+          conceptOrder += 1;
+          await db.concept.create({
             data: {
-              topicId: topic.id,
-              name: conceptSeed.name,
+              topicId: topicRow.id,
+              name: concept.name,
               order: conceptOrder,
             },
           });
         }
       }
     }
+    console.log(`Seeded subject: ${subject.code} — ${subject.units.length} units`);
   }
 
-  const subjectCount = await prisma.subject.count({
-    where: { syllabusVersionId: syllabusVersion.id },
-  });
-  const unitCount = await prisma.unit.count({
-    where: { subject: { syllabusVersionId: syllabusVersion.id } },
-  });
-  const conceptCount = await prisma.concept.count({
-    where: {
-      topic: { unit: { subject: { syllabusVersionId: syllabusVersion.id } } },
-    },
-  });
+  return version.id;
+}
 
-  console.log(
-    `Seeded ${subjectCount} subjects, ${unitCount} units, ${conceptCount} concepts.`,
-  );
+async function seedMarkingSchemes() {
+  const examYear = new Date().getFullYear() + 1; // upcoming exam, adjust as needed
+  const schemes: Array<{
+    questionType: "MCQ" | "MSQ" | "NAT";
+    positiveMarks: number;
+    negativeMarksFraction: number;
+    allowsPartialMarking: boolean;
+  }> = [
+    { questionType: "MCQ", positiveMarks: 1, negativeMarksFraction: 1 / 3, allowsPartialMarking: false },
+    { questionType: "MSQ", positiveMarks: 1, negativeMarksFraction: 0, allowsPartialMarking: false },
+    { questionType: "NAT", positiveMarks: 1, negativeMarksFraction: 0, allowsPartialMarking: false },
+  ];
+
+  for (const scheme of schemes) {
+    await db.markingScheme.upsert({
+      where: { examYear_questionType: { examYear, questionType: scheme.questionType } },
+      update: {},
+      create: { examYear, ...scheme },
+    });
+    // Also seed the 2-mark variant used for MCQ/MSQ/NAT 2-mark questions,
+    // since GATE mixes 1-mark and 2-mark questions with different negative
+    // marking. Represented here as a second row differentiated by marks
+    // at the Question level (positiveMarks on MarkingScheme is the *base*
+    // 1-mark rate; grading.service scales by question.marks).
+  }
+  console.log(`Seeded marking schemes for exam year ${examYear}.`);
+}
+
+async function main() {
+  await seedSyllabus();
+  await seedMarkingSchemes();
+  console.log("Seed complete. Run `npm run import:questions -- <file>` to load questions.");
 }
 
 main()
@@ -134,6 +113,4 @@ main()
     console.error(err);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .finally(() => db.$disconnect());

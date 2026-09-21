@@ -1,72 +1,57 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
     setLoading(true);
-
+    setError(null);
     const res = await fetch("/api/auth", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
-
     setLoading(false);
-
     if (!res.ok) {
-      const body = await res
-        .json()
-        .catch(() => ({ error: "Something went wrong." }));
-      setError(body.error ?? "Something went wrong.");
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? "Sign-in failed.");
       return;
     }
-
-    const next = searchParams.get("next") ?? "/dashboard";
-    router.push(next as any);
+    router.push("/dashboard");
     router.refresh();
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm border border-slate/30 p-8"
-      >
-        <h1 className="font-display text-xl font-semibold text-fog">GATE AI</h1>
-        <p className="mt-1 text-sm text-slate">
-          This is a personal system. Sign in with an allowlisted email.
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <form onSubmit={handleSubmit} className="w-full max-w-sm">
+        <div className="w-10 h-10 rounded-full bg-ink flex items-center justify-center text-white font-semibold text-sm mb-6">
+          G
+        </div>
+        <h1 className="text-xl font-semibold text-ink">Sign in to GATE AI</h1>
+        <p className="text-sm text-slate mt-1 mb-6">
+          This is a personal system — only your allowlisted email can enter.
         </p>
-
-        <label htmlFor="email" className="mt-6 block text-sm text-fog">
-          Email
-        </label>
-        <input
-          id="email"
+        <Input
           type="email"
           required
+          placeholder="you@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 w-full rounded-control border border-slate/50 bg-panel px-3 py-2 text-sm text-fog outline-none focus-visible:border-teal"
-          placeholder="you@example.com"
         />
-
-        {error && <p className="mt-3 text-sm text-amber">{error}</p>}
-
-        <Button type="submit" className="mt-6 w-full" disabled={loading}>
+        {error && <p className="text-xs text-amber mt-2">{error}</p>}
+        <Button type="submit" disabled={loading} className="w-full mt-4">
           {loading ? "Signing in…" : "Sign in"}
         </Button>
       </form>
-    </main>
+    </div>
   );
 }

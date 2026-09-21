@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
-import { getSyllabusTree } from "@/server/domains/syllabus/syllabus.service";
+import { requireUser, UnauthorizedError } from "@/server/auth/require";
+import { getTree } from "@/server/domains/syllabus/syllabus.service";
 
 export async function GET() {
-  const tree = await getSyllabusTree();
-  if (!tree) {
-    return NextResponse.json(
-      { error: "No active syllabus version found. Run `npm run seed` first." },
-      { status: 404 },
-    );
+  try {
+    await requireUser();
+    const tree = await getTree();
+    return NextResponse.json(tree);
+  } catch (err) {
+    if (err instanceof UnauthorizedError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error(err);
+    return NextResponse.json({ error: "Failed to load syllabus." }, { status: 500 });
   }
-  return NextResponse.json(tree);
 }

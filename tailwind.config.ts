@@ -1,55 +1,44 @@
 import type { Config } from "tailwindcss";
 
+// Tokens copied 1:1 from design.md ("GATE AI — Design System, canonical
+// per dashboard-demo-v3.html"). Do not invent ad-hoc hex values in
+// component code — extend this file and back-fill design.md instead.
 const config: Config = {
-  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
+  content: [
+    "./app/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+  ],
   theme: {
     extend: {
       colors: {
-        "page-mint": "var(--color-page-mint)",
-        "page-mint-deep": "var(--color-page-mint-deep)",
-        "app-surface": "var(--color-app-surface)",
-        "panel-surface": "var(--color-panel-surface)",
-        "card-surface": "var(--color-card-surface)",
-        ink: "var(--color-ink)",
-        "ink-soft": "var(--color-ink-soft)",
-        "ink-muted": "var(--color-ink-muted)",
-        line: "var(--color-line)",
-        control: "var(--color-control)",
-        coral: "var(--color-coral)",
-        lavender: "var(--color-lavender)",
-        butter: "var(--color-butter)",
-        mint: "var(--color-mint)",
-        sky: "var(--color-sky)",
-        peach: "var(--color-peach)",
-        yellow: "var(--color-yellow)",
-        rose: "var(--color-rose)",
-        teal: "var(--color-teal)",
-        amber: "var(--color-amber)",
+        surface: "#F8F6F2",
+        ink: "#111111",
+        "ink-soft": "#222222",
+        "body-muted": "#3a3a3a",
+        slate: "#77736D",
+        "slate-light": "#9B968E",
+        line: "#E3E0DA",
+        control: "#ECE9E3",
+        teal: "#0E8074",
+        amber: "#D98E2B",
+        butter: "#F4DEB4",
+        sky: "#C7E3F5",
+        lavender: "#D0CCF4",
+        coral: "#F4C1C4",
+        mint: "#BDEBD9",
       },
       fontFamily: {
-        display: ["var(--font-display)", "system-ui", "sans-serif"],
-        body: ["var(--font-body)", "system-ui", "sans-serif"],
+        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       borderRadius: {
-        control: "var(--radius-control)",
-        ring: "var(--radius-ring)",
-        none: "0px",
-      },
-      boxShadow: {
-        overlay: "var(--shadow-overlay)",
-        none: "none",
-      },
-      maxWidth: {
-        prose: "72ch",
+        card: "20px",
+        hero: "24px",
       },
       keyframes: {
-        "ring-fill": {
-          from: { strokeDashoffset: "var(--ring-circumference)" },
-          to: { strokeDashoffset: "var(--ring-offset)" },
-        },
+        fillbar: { from: { width: "0%" } },
       },
       animation: {
-        "ring-fill": "ring-fill 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards",
+        "fill-w": "fillbar 900ms cubic-bezier(0.22,1,0.36,1) forwards",
       },
     },
   },

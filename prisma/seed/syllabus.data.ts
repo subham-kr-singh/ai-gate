@@ -1,646 +1,403 @@
-/**
- * Canonical syllabus data — transcribed directly from the user-supplied
- * syllabus_details.md (10 subjects, 55 units total — matches the "55-unit
- * structure" referenced as authoritative in GATE_AI_ARCHITECTURE_UPDATED_V1.md).
- *
- * Subject/unit names, ordering, and terminology are preserved exactly as
- * given — this is imported as structured data, not regenerated from model
- * knowledge (see architecture doc, "Current Syllabus Is the Source of
- * Truth").
- *
- * Shape: each Unit's bullet list becomes its Concepts. syllabus_details.md
- * does not give a separate Topic layer below Unit, so each Unit gets one
- * pass-through Topic of the same name — this keeps the Subject → Unit →
- * Topic → Concept hierarchy from the architecture doc intact without
- * inventing topic names that aren't in the source.
- */
+// Hand-encoded from syllabus_details.md — Subject → Unit(=the numbered
+// "1.1", "1.2" ... sections) → Topic(=each bullet's own sub-concept grouping)
+// → Concept(=individual bullet). This file is the authoritative syllabus
+// content; do not regenerate it from model knowledge (architecture:
+// "Current Syllabus Is the Source of Truth").
+//
+// NOTE ON HIERARCHY MAPPING: syllabus_details.md uses a 2-level hierarchy
+// (Subject → numbered subsection, each with a flat bullet list). We map
+// each numbered subsection ("1.1 Mathematical Logic") to a Unit, and
+// group its bullets into a single Topic of the same name holding one
+// Concept per bullet. This keeps every bullet individually trackable
+// (mastery/attempts are Concept-level) while preserving the exact
+// subject/unit names and ordering from the source document.
 
-export interface SyllabusConceptSeed {
+export interface ConceptSeed {
   name: string;
 }
-
-export interface SyllabusUnitSeed {
-  code: string; // e.g. "1.1"
+export interface TopicSeed {
   name: string;
-  concepts: SyllabusConceptSeed[];
+  concepts: ConceptSeed[];
+}
+export interface UnitSeed {
+  name: string;
+  topics: TopicSeed[];
+}
+export interface SubjectSeed {
+  code: string;
+  name: string;
+  units: UnitSeed[];
 }
 
-export interface SyllabusSubjectSeed {
-  code: string; // e.g. "1"
-  name: string;
-  units: SyllabusUnitSeed[];
+function unit(name: string, bullets: string[]): UnitSeed {
+  return { name, topics: [{ name, concepts: bullets.map((b) => ({ name: b })) }] };
 }
 
-export const SYLLABUS_SUBJECTS: SyllabusSubjectSeed[] = [
+export const syllabusSubjects: SubjectSeed[] = [
   {
-    code: "1",
+    code: "MATH",
     name: "Discrete & Engineering Mathematics",
     units: [
-      {
-        code: "1.1",
-        name: "Mathematical Logic",
-        concepts: [
-          { name: "Propositional logic" },
-          { name: "First-order logic" },
-        ],
-      },
-      {
-        code: "1.2",
-        name: "Set Theory & Algebra",
-        concepts: [
-          { name: "Sets" },
-          { name: "Relations" },
-          { name: "Functions" },
-          { name: "Partial orders" },
-          { name: "Lattices" },
-          { name: "Groups" },
-        ],
-      },
-      {
-        code: "1.3",
-        name: "Combinatorics",
-        concepts: [
-          { name: "Counting" },
-          { name: "Recurrence relations" },
-          { name: "Generating functions" },
-        ],
-      },
-      {
-        code: "1.4",
-        name: "Graph Theory",
-        concepts: [
-          { name: "Connectivity" },
-          { name: "Matching" },
-          { name: "Coloring" },
-        ],
-      },
-      {
-        code: "1.5",
-        name: "Probability",
-        concepts: [
-          { name: "Random variables" },
-          { name: "Uniform distribution" },
-          { name: "Normal distribution" },
-          { name: "Exponential distribution" },
-          { name: "Poisson distribution" },
-          { name: "Binomial distribution" },
-          { name: "Mean" },
-          { name: "Median" },
-          { name: "Standard deviation" },
-          { name: "Conditional probability" },
-          { name: "Bayes theorem" },
-        ],
-      },
-      {
-        code: "1.6",
-        name: "Linear Algebra",
-        concepts: [
-          { name: "Matrices" },
-          { name: "Determinants" },
-          { name: "Systems of linear equations" },
-          { name: "Eigenvalues" },
-          { name: "Eigenvectors" },
-          { name: "Linear transformations / decomposition" },
-        ],
-      },
-      {
-        code: "1.7",
-        name: "Calculus",
-        concepts: [
-          { name: "Limits" },
-          { name: "Continuity" },
-          { name: "Differentiability" },
-          { name: "Maxima and minima" },
-          { name: "Mean value theorem" },
-          { name: "Integration" },
-        ],
-      },
+      unit("Mathematical Logic", ["Propositional logic", "First-order logic"]),
+      unit("Set Theory & Algebra", [
+        "Sets",
+        "Relations",
+        "Functions",
+        "Partial orders",
+        "Lattices",
+        "Groups",
+      ]),
+      unit("Combinatorics", [
+        "Counting",
+        "Recurrence relations",
+        "Generating functions",
+      ]),
+      unit("Graph Theory", ["Connectivity", "Matching", "Coloring"]),
+      unit("Probability", [
+        "Random variables",
+        "Uniform distribution",
+        "Normal distribution",
+        "Exponential distribution",
+        "Poisson distribution",
+        "Binomial distribution",
+        "Mean",
+        "Median",
+        "Standard deviation",
+        "Conditional probability",
+        "Bayes theorem",
+      ]),
+      unit("Linear Algebra", [
+        "Matrices",
+        "Determinants",
+        "Systems of linear equations",
+        "Eigenvalues",
+        "Eigenvectors",
+        "Linear transformations / decomposition",
+      ]),
+      unit("Calculus", [
+        "Limits",
+        "Continuity",
+        "Differentiability",
+        "Maxima and minima",
+        "Mean value theorem",
+        "Integration",
+      ]),
     ],
   },
   {
-    code: "2",
+    code: "TOC",
     name: "Theory of Computation",
     units: [
-      {
-        code: "2.1",
-        name: "Finite Automata & Regular Languages",
-        concepts: [
-          { name: "Finite automata" },
-          { name: "Regular languages" },
-          { name: "Regular expressions" },
-          { name: "Properties of regular languages" },
-        ],
-      },
-      {
-        code: "2.2",
-        name: "Pushdown Automata & Context-Free Languages",
-        concepts: [
-          { name: "Pushdown automata" },
-          { name: "Context-free languages" },
-          { name: "Deterministic context-free languages" },
-          { name: "Context-free grammars" },
-        ],
-      },
-      {
-        code: "2.3",
-        name: "Turing Machines",
-        concepts: [
-          { name: "Turing machines" },
-          { name: "Recursively enumerable languages" },
-          { name: "Recursive languages" },
-          { name: "Undecidability" },
-        ],
-      },
+      unit("Finite Automata & Regular Languages", [
+        "Finite automata",
+        "Regular languages",
+        "Regular expressions",
+        "Properties of regular languages",
+      ]),
+      unit("Pushdown Automata & Context-Free Languages", [
+        "Pushdown automata",
+        "Context-free languages",
+        "Deterministic context-free languages",
+        "Context-free grammars",
+      ]),
+      unit("Turing Machines", [
+        "Turing machines",
+        "Recursively enumerable languages",
+        "Recursive languages",
+        "Undecidability",
+      ]),
     ],
   },
   {
-    code: "3",
+    code: "DL",
     name: "Digital Logic",
     units: [
-      {
-        code: "3.1",
-        name: "Logic Functions & Minimization",
-        concepts: [
-          { name: "Boolean algebra" },
-          { name: "Logic functions" },
-          { name: "Boolean function representation" },
-          { name: "Minimization" },
-        ],
-      },
-      {
-        code: "3.2",
-        name: "Combinational Circuits",
-        concepts: [
-          { name: "Combinational logic" },
-          { name: "Standard combinational building blocks" },
-          { name: "Circuit design and analysis" },
-        ],
-      },
-      {
-        code: "3.3",
-        name: "Sequential Circuits",
-        concepts: [
-          { name: "Sequential logic" },
-          { name: "State-based circuit design" },
-          { name: "Sequential circuit analysis" },
-        ],
-      },
-      {
-        code: "3.4",
-        name: "Number Systems",
-        concepts: [
-          { name: "Number representation" },
-          { name: "Binary arithmetic" },
-          { name: "Number-system conversions" },
-        ],
-      },
+      unit("Logic Functions & Minimization", [
+        "Boolean algebra",
+        "Logic functions",
+        "Boolean function representation",
+        "Minimization",
+      ]),
+      unit("Combinational Circuits", [
+        "Combinational logic",
+        "Standard combinational building blocks",
+        "Circuit design and analysis",
+      ]),
+      unit("Sequential Circuits", [
+        "Sequential logic",
+        "State-based circuit design",
+        "Sequential circuit analysis",
+      ]),
+      unit("Number Systems", [
+        "Number representation",
+        "Binary arithmetic",
+        "Number-system conversions",
+      ]),
     ],
   },
   {
-    code: "4",
+    code: "COA",
     name: "Computer Organization & Architecture",
     units: [
-      {
-        code: "4.1",
-        name: "CPU Architecture & Addressing Modes",
-        concepts: [
-          { name: "CPU organization" },
-          { name: "Instruction representation" },
-          { name: "Instruction execution" },
-          { name: "Addressing modes" },
-        ],
-      },
-      {
-        code: "4.2",
-        name: "Control Unit Design",
-        concepts: [
-          { name: "Control-unit organization" },
-          { name: "Control signals" },
-          { name: "Instruction control" },
-          { name: "Control-unit design" },
-        ],
-      },
-      {
-        code: "4.3",
-        name: "Instruction Pipelining",
-        concepts: [
-          { name: "Pipelining" },
-          { name: "Pipeline stages" },
-          { name: "Pipeline performance" },
-          { name: "Pipeline hazards" },
-        ],
-      },
-      {
-        code: "4.4",
-        name: "Memory Organization",
-        concepts: [
-          { name: "Memory hierarchy" },
-          { name: "Memory organization" },
-          { name: "Cache and related memory concepts" },
-        ],
-      },
-      {
-        code: "4.5",
-        name: "Input/Output Organization",
-        concepts: [
-          { name: "I/O organization" },
-          { name: "I/O mechanisms" },
-          { name: "Device communication" },
-        ],
-      },
+      unit("CPU Architecture & Addressing Modes", [
+        "CPU organization",
+        "Instruction representation",
+        "Instruction execution",
+        "Addressing modes",
+      ]),
+      unit("Control Unit Design", [
+        "Control-unit organization",
+        "Control signals",
+        "Instruction control",
+        "Control-unit design",
+      ]),
+      unit("Instruction Pipelining", [
+        "Pipelining",
+        "Pipeline stages",
+        "Pipeline performance",
+        "Pipeline hazards",
+      ]),
+      unit("Memory Organization", [
+        "Memory hierarchy",
+        "Memory organization",
+        "Cache and related memory concepts",
+      ]),
+      unit("Input/Output Organization", [
+        "I/O organization",
+        "I/O mechanisms",
+        "Device communication",
+      ]),
     ],
   },
   {
-    code: "5",
+    code: "PDS",
     name: "Programming & Data Structures",
     units: [
-      {
-        code: "5.1",
-        name: "Programming",
-        concepts: [
-          { name: "Programming in C" },
-          { name: "Functions" },
-          { name: "Recursion" },
-          { name: "Parameter passing" },
-          { name: "Scope" },
-          { name: "Binding" },
-          { name: "Abstract data types" },
-        ],
-      },
-      {
-        code: "5.2",
-        name: "Arrays",
-        concepts: [
-          { name: "Array representation" },
-          { name: "Array operations" },
-          { name: "Applications of arrays" },
-        ],
-      },
-      {
-        code: "5.3",
-        name: "Stacks & Queues",
-        concepts: [
-          { name: "Stacks" },
-          { name: "Stack operations" },
-          { name: "Queues" },
-          { name: "Queue operations" },
-          { name: "Applications" },
-        ],
-      },
-      {
-        code: "5.4",
-        name: "Linked Lists",
-        concepts: [
-          { name: "Linked-list representation" },
-          { name: "Linked-list operations" },
-          { name: "Variants and applications" },
-        ],
-      },
-      {
-        code: "5.5",
-        name: "Trees",
-        concepts: [
-          { name: "Trees" },
-          { name: "Binary trees" },
-          { name: "Binary search trees" },
-          { name: "Tree operations" },
-        ],
-      },
-      {
-        code: "5.6",
-        name: "Graphs",
-        concepts: [
-          { name: "Graph representation" },
-          { name: "Graph traversal" },
-          { name: "Graph operations" },
-        ],
-      },
-      {
-        code: "5.7",
-        name: "Hashing",
-        concepts: [
-          { name: "Hash tables" },
-          { name: "Hash functions" },
-          { name: "Collision handling" },
-          { name: "Hashing applications" },
-        ],
-      },
+      unit("Programming", [
+        "Programming in C",
+        "Functions",
+        "Recursion",
+        "Parameter passing",
+        "Scope",
+        "Binding",
+        "Abstract data types",
+      ]),
+      unit("Arrays", [
+        "Array representation",
+        "Array operations",
+        "Applications of arrays",
+      ]),
+      unit("Stacks & Queues", [
+        "Stacks",
+        "Stack operations",
+        "Queues",
+        "Queue operations",
+        "Applications",
+      ]),
+      unit("Linked Lists", [
+        "Linked-list representation",
+        "Linked-list operations",
+        "Variants and applications",
+      ]),
+      unit("Trees", ["Trees", "Binary trees", "Binary search trees", "Tree operations"]),
+      unit("Graphs", ["Graph representation", "Graph traversal", "Graph operations"]),
+      unit("Hashing", [
+        "Hash tables",
+        "Hash functions",
+        "Collision handling",
+        "Hashing applications",
+      ]),
     ],
   },
   {
-    code: "6",
+    code: "ALGO",
     name: "Algorithms",
     units: [
-      {
-        code: "6.1",
-        name: "Algorithm Analysis & Asymptotic Notations",
-        concepts: [
-          { name: "Algorithm analysis" },
-          { name: "Time complexity" },
-          { name: "Space complexity" },
-          { name: "Asymptotic analysis" },
-          { name: "Best-case analysis" },
-          { name: "Worst-case analysis" },
-          { name: "Average-case analysis" },
-          { name: "Asymptotic notations" },
-          { name: "Lower and upper bounds" },
-        ],
-      },
-      {
-        code: "6.2",
-        name: "Divide and Conquer",
-        concepts: [
-          { name: "Divide-and-conquer strategy" },
-          { name: "Recursive decomposition" },
-          { name: "Divide-and-conquer algorithms" },
-        ],
-      },
-      {
-        code: "6.3",
-        name: "Greedy Method",
-        concepts: [
-          { name: "Greedy strategy" },
-          { name: "Greedy-choice property" },
-          { name: "Greedy algorithms" },
-        ],
-      },
-      {
-        code: "6.4",
-        name: "Dynamic Programming",
-        concepts: [
-          { name: "Dynamic-programming strategy" },
-          { name: "Optimal substructure" },
-          { name: "Overlapping subproblems" },
-          { name: "Dynamic-programming algorithms" },
-        ],
-      },
-      {
-        code: "6.5",
-        name: "P and NP Concepts",
-        concepts: [
-          { name: "P" },
-          { name: "NP" },
-          { name: "NP-complete concepts" },
-          { name: "NP-hard concepts" },
-        ],
-      },
-      {
-        code: "6.6",
-        name: "Graph & Tree Algorithms",
-        concepts: [
-          { name: "Tree traversal" },
-          { name: "Graph traversal" },
-          { name: "Connected components" },
-          { name: "Spanning trees" },
-          { name: "Shortest paths" },
-        ],
-      },
-      {
-        code: "6.7",
-        name: "Fundamental Algorithmic Topics",
-        concepts: [
-          { name: "Hashing" },
-          { name: "Sorting" },
-          { name: "Searching" },
-        ],
-      },
+      unit("Algorithm Analysis & Asymptotic Notations", [
+        "Algorithm analysis",
+        "Time complexity",
+        "Space complexity",
+        "Asymptotic analysis",
+        "Best-case analysis",
+        "Worst-case analysis",
+        "Average-case analysis",
+        "Asymptotic notations",
+        "Lower and upper bounds",
+      ]),
+      unit("Divide and Conquer", [
+        "Divide-and-conquer strategy",
+        "Recursive decomposition",
+        "Divide-and-conquer algorithms",
+      ]),
+      unit("Greedy Method", [
+        "Greedy strategy",
+        "Greedy-choice property",
+        "Greedy algorithms",
+      ]),
+      unit("Dynamic Programming", [
+        "Dynamic-programming strategy",
+        "Optimal substructure",
+        "Overlapping subproblems",
+        "Dynamic-programming algorithms",
+      ]),
+      unit("P and NP Concepts", ["P", "NP", "NP-complete concepts", "NP-hard concepts"]),
+      unit("Graph & Tree Algorithms", [
+        "Tree traversal",
+        "Graph traversal",
+        "Connected components",
+        "Spanning trees",
+        "Shortest paths",
+      ]),
+      unit("Fundamental Algorithmic Topics", ["Hashing", "Sorting", "Searching"]),
     ],
   },
   {
-    code: "7",
+    code: "CD",
     name: "Compiler Design",
     units: [
-      {
-        code: "7.1",
-        name: "Lexical Analysis",
-        concepts: [
-          { name: "Tokens" },
-          { name: "Lexemes" },
-          { name: "Lexical analysis" },
-          { name: "Regular-expression based tokenization" },
-        ],
-      },
-      {
-        code: "7.2",
-        name: "Parsing Techniques",
-        concepts: [
-          { name: "Syntax analysis" },
-          { name: "Parsing" },
-          { name: "Grammar-based parsing" },
-          { name: "Parsing techniques" },
-        ],
-      },
-      {
-        code: "7.3",
-        name: "Syntax-Directed Translation",
-        concepts: [
-          { name: "Syntax-directed definitions" },
-          { name: "Syntax-directed translation" },
-          { name: "Attribute-based translation" },
-        ],
-      },
-      {
-        code: "7.4",
-        name: "Runtime Environments",
-        concepts: [
-          { name: "Runtime environment" },
-          { name: "Storage organization" },
-          { name: "Procedure activation" },
-          { name: "Parameter handling" },
-        ],
-      },
-      {
-        code: "7.5",
-        name: "Intermediate & Target Code Generation",
-        concepts: [
-          { name: "Intermediate representation" },
-          { name: "Intermediate-code generation" },
-          { name: "Target-code generation" },
-        ],
-      },
-      {
-        code: "7.6",
-        name: "Code Optimization",
-        concepts: [
-          { name: "Local optimization" },
-          { name: "Data-flow analysis" },
-          { name: "Constant propagation" },
-          { name: "Liveness analysis" },
-          { name: "Common-subexpression elimination" },
-          { name: "Code optimization" },
-        ],
-      },
+      unit("Lexical Analysis", [
+        "Tokens",
+        "Lexemes",
+        "Lexical analysis",
+        "Regular-expression based tokenization",
+      ]),
+      unit("Parsing Techniques", [
+        "Syntax analysis",
+        "Parsing",
+        "Grammar-based parsing",
+        "Parsing techniques",
+      ]),
+      unit("Syntax-Directed Translation", [
+        "Syntax-directed definitions",
+        "Syntax-directed translation",
+        "Attribute-based translation",
+      ]),
+      unit("Runtime Environments", [
+        "Runtime environment",
+        "Storage organization",
+        "Procedure activation",
+        "Parameter handling",
+      ]),
+      unit("Intermediate & Target Code Generation", [
+        "Intermediate representation",
+        "Intermediate-code generation",
+        "Target-code generation",
+      ]),
+      unit("Code Optimization", [
+        "Local optimization",
+        "Data-flow analysis",
+        "Constant propagation",
+        "Liveness analysis",
+        "Common-subexpression elimination",
+        "Code optimization",
+      ]),
     ],
   },
   {
-    code: "8",
+    code: "OS",
     name: "Operating Systems",
     units: [
-      {
-        code: "8.1",
-        name: "Process Management I",
-        concepts: [
-          { name: "Introduction to operating systems" },
-          { name: "Processes" },
-          { name: "Threads" },
-          { name: "CPU scheduling" },
-        ],
-      },
-      {
-        code: "8.2",
-        name: "Process Management II",
-        concepts: [
-          { name: "Inter-process communication" },
-          { name: "Synchronization" },
-          { name: "Concurrency" },
-        ],
-      },
-      {
-        code: "8.3",
-        name: "Deadlock",
-        concepts: [
-          { name: "Deadlock concepts" },
-          { name: "Deadlock handling" },
-          { name: "Deadlock avoidance and related techniques" },
-        ],
-      },
-      {
-        code: "8.4",
-        name: "Memory Management & Virtual Memory",
-        concepts: [
-          { name: "Memory management" },
-          { name: "Virtual memory" },
-          { name: "Address-space management" },
-          { name: "Memory allocation concepts" },
-        ],
-      },
-      {
-        code: "8.5",
-        name: "File System & Device Management",
-        concepts: [
-          { name: "File systems" },
-          { name: "File management" },
-          { name: "I/O systems" },
-          { name: "Device management" },
-        ],
-      },
-      {
-        code: "8.6",
-        name: "Miscellaneous",
-        concepts: [{ name: "Other operating-system concepts" }],
-      },
+      unit("Process Management I", [
+        "Introduction to operating systems",
+        "Processes",
+        "Threads",
+        "CPU scheduling",
+      ]),
+      unit("Process Management II", [
+        "Inter-process communication",
+        "Synchronization",
+        "Concurrency",
+      ]),
+      unit("Deadlock", [
+        "Deadlock concepts",
+        "Deadlock handling",
+        "Deadlock avoidance and related techniques",
+      ]),
+      unit("Memory Management & Virtual Memory", [
+        "Memory management",
+        "Virtual memory",
+        "Address-space management",
+        "Memory allocation concepts",
+      ]),
+      unit("File System & Device Management", [
+        "File systems",
+        "File management",
+        "I/O systems",
+        "Device management",
+      ]),
+      unit("Miscellaneous", ["Other operating-system concepts"]),
     ],
   },
   {
-    code: "9",
+    code: "DBMS",
     name: "Databases",
     units: [
-      {
-        code: "9.1",
-        name: "ER Model",
-        concepts: [
-          { name: "Entity-relationship model" },
-          { name: "Entities" },
-          { name: "Attributes" },
-          { name: "Relationships" },
-          { name: "ER modeling" },
-        ],
-      },
-      {
-        code: "9.2",
-        name: "Database Design",
-        concepts: [
-          { name: "Functional dependencies" },
-          { name: "Normalization" },
-          { name: "Database design" },
-          { name: "Integrity constraints" },
-        ],
-      },
-      {
-        code: "9.3",
-        name: "Structured Query Language (SQL)",
-        concepts: [
-          { name: "SQL" },
-          { name: "Data definition" },
-          { name: "Data manipulation" },
-          { name: "Query processing concepts" },
-        ],
-      },
-      {
-        code: "9.4",
-        name: "Relational Model",
-        concepts: [
-          { name: "Relational model" },
-          { name: "Relational algebra" },
-          { name: "Tuple calculus" },
-        ],
-      },
-      {
-        code: "9.5",
-        name: "Transactions & Concurrency Control",
-        concepts: [
-          { name: "Transactions" },
-          { name: "Concurrency" },
-          { name: "Concurrency control" },
-          { name: "Transaction-related concepts" },
-        ],
-      },
-      {
-        code: "9.6",
-        name: "File Structures",
-        concepts: [
-          { name: "File organization" },
-          { name: "Sequential files" },
-          { name: "Indexing" },
-          { name: "B-trees" },
-          { name: "B+ trees" },
-        ],
-      },
+      unit("ER Model", [
+        "Entity-relationship model",
+        "Entities",
+        "Attributes",
+        "Relationships",
+        "ER modeling",
+      ]),
+      unit("Database Design", [
+        "Functional dependencies",
+        "Normalization",
+        "Database design",
+        "Integrity constraints",
+      ]),
+      unit("Structured Query Language (SQL)", [
+        "SQL",
+        "Data definition",
+        "Data manipulation",
+        "Query processing concepts",
+      ]),
+      unit("Relational Model", [
+        "Relational model",
+        "Relational algebra",
+        "Tuple calculus",
+      ]),
+      unit("Transactions & Concurrency Control", [
+        "Transactions",
+        "Concurrency",
+        "Concurrency control",
+        "Transaction-related concepts",
+      ]),
+      unit("File Structures", [
+        "File organization",
+        "Sequential files",
+        "Indexing",
+        "B-trees",
+        "B+ trees",
+      ]),
     ],
   },
   {
-    code: "10",
+    code: "CN",
     name: "Computer Networks",
     units: [
-      {
-        code: "10.1",
-        name: "ISO/OSI Stack & Software",
-        concepts: [
-          { name: "ISO/OSI reference model" },
-          { name: "Layered network architecture" },
-          { name: "Network software concepts" },
-        ],
-      },
-      {
-        code: "10.2",
-        name: "LAN",
-        concepts: [
-          { name: "Local area networks" },
-          { name: "LAN architecture" },
-          { name: "LAN-related protocols and concepts" },
-        ],
-      },
-      {
-        code: "10.3",
-        name: "TCP, UDP & IP",
-        concepts: [
-          { name: "TCP" },
-          { name: "UDP" },
-          { name: "IP" },
-          { name: "Transport-layer concepts" },
-          { name: "Internet-layer concepts" },
-        ],
-      },
-      {
-        code: "10.4",
-        name: "Routing & Application Layer",
-        concepts: [
-          { name: "Routing" },
-          { name: "Routing concepts and protocols" },
-          { name: "Application-layer concepts" },
-          { name: "Network applications" },
-        ],
-      },
+      unit("ISO/OSI Stack & Software", [
+        "ISO/OSI reference model",
+        "Layered network architecture",
+        "Network software concepts",
+      ]),
+      unit("LAN", [
+        "Local area networks",
+        "LAN architecture",
+        "LAN-related protocols and concepts",
+      ]),
+      unit("TCP, UDP & IP", [
+        "TCP",
+        "UDP",
+        "IP",
+        "Transport-layer concepts",
+        "Internet-layer concepts",
+      ]),
+      unit("Routing & Application Layer", [
+        "Routing",
+        "Routing concepts and protocols",
+        "Application-layer concepts",
+        "Network applications",
+      ]),
     ],
   },
 ];

@@ -1,11 +1,7 @@
-import { env } from "@/lib/env";
+import { allowedEmails } from "@/lib/env";
 
-/**
- * This is a personal, single-user system (see architecture doc §"Login
- * Allowlist") — no signup flow, no roles. Only emails explicitly listed
- * in ALLOWED_EMAILS can create a session.
- */
+/** Because this is a personal system, auth is a static email allowlist
+ * (architecture "Login Allowlist") — no OAuth roles, no signup flow. */
 export function isEmailAllowed(email: string): boolean {
-  const normalized = email.trim().toLowerCase();
-  return env.allowedEmails.includes(normalized);
+  return allowedEmails().includes(email.trim().toLowerCase());
 }
