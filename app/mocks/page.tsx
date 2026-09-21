@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AppShell } from '@/components/shell/AppShell';
 import { duration, marks, pct, shortDate } from '@/components/mocks/format';
 import { NewMockButton } from '@/components/mocks/NewMockButton';
 import { getMockService } from '@/server/domains/tests/mock.context';
@@ -14,14 +15,14 @@ export default async function MocksPage() {
   const bp = listing.blueprints[0]!;
 
   return (
-    <div className="min-h-screen bg-[#F8F6F2] px-6 py-10 md:px-10">
-      <div className="mx-auto flex max-w-4xl flex-col gap-7">
+    <AppShell active="mocks">
+      <div className="flex flex-col gap-7">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <Link href="/dashboard" className="text-sm text-[#77736D] underline-offset-2 hover:underline">
-              Dashboard
-            </Link>
-            <h1 className="mt-2 text-xl font-semibold text-[#111111]">Mocks</h1>
+            <h1 className="text-xl font-semibold text-[#111111]">Mocks</h1>
+            <p className="mt-1 text-sm text-[#77736D]">
+              Full-length, exam-clock practice. Answers save as you go.
+            </p>
           </div>
           <div className="w-56 text-right">
             <p className="text-sm text-[#77736D]">
@@ -97,7 +98,7 @@ export default async function MocksPage() {
           )}
         </section>
       </div>
-    </div>
+    </AppShell>
   );
 }
 

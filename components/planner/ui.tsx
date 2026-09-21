@@ -13,16 +13,6 @@ export const pillDark = `inline-flex h-10 items-center justify-center rounded-fu
 export const pillSoft = `inline-flex h-9 items-center justify-center rounded-full bg-[#ECE9E3] px-4 text-sm text-[#222222] hover:bg-[#E3E0DA] ${focusRing}`;
 export const cardClass = "rounded-[20px] border border-[#E3E0DA] bg-white";
 
-/** Main workspace plus the 320px insight panel; the nav rail lives in the app layout. */
-export function PageShell({ children, aside }: { children: ReactNode; aside: ReactNode }) {
-  return (
-    <div className="grid min-h-screen grid-cols-1 bg-[#F8F6F2] text-[#111111] lg:grid-cols-[minmax(0,1fr)_320px]">
-      <main className="flex flex-col gap-7 p-6 md:p-10 lg:border-r lg:border-[#E3E0DA]">{children}</main>
-      <aside className="flex flex-col gap-6 border-t border-[#E3E0DA] p-6 lg:border-t-0">{aside}</aside>
-    </div>
-  );
-}
-
 export function ProgressBar({ value, tone = "ink", label }: { value: number; tone?: "ink" | "teal" | "amber"; label: string }) {
   const w = Math.round(Math.min(1, Math.max(0, value)) * 100);
   const fill = tone === "teal" ? "bg-[#0E8074]" : tone === "amber" ? "bg-[#D98E2B]" : "bg-[#111111]";

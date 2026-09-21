@@ -1,5 +1,4 @@
-import { db } from "@/server/db/client";
-import { getSessionEmail } from "./session";
+import { getCurrentUser, getSessionEmail } from "./session";
 import { isEmailAllowed } from "./allowlist";
 
 export class UnauthorizedError extends Error {
@@ -17,10 +16,7 @@ export async function requireUser() {
   if (!email || !isEmailAllowed(email)) {
     throw new UnauthorizedError();
   }
-  const user = await db.user.upsert({
-    where: { email },
-    update: {},
-    create: { email },
-  });
+  const user = await getCurrentUser();
+  if (!user) throw new UnauthorizedError();
   return user;
 }

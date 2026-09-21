@@ -55,6 +55,13 @@ export default async function DashboardPage() {
     <>
       <Link href={"/study-report" as any} className={`${ui.btn} w-full`}>+ Log study session</Link>
 
+      <Link
+        href={"/tutor" as any}
+        className="text-sm text-[#111111] underline-offset-2 hover:underline"
+      >
+        Tutor — describe a session and I&apos;ll draft the report
+      </Link>
+
       <section aria-labelledby="pending-revision">
         <h2 id="pending-revision" className="mb-2 text-sm font-semibold text-[#111111]">Pending revision</h2>
         {revision.length === 0 ? (

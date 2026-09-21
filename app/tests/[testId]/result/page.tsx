@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AppShell } from "@/components/shell/AppShell";
 import { requireUser } from "@/server/auth/require";
 import { getResult } from "@/server/domains/tests/test.service";
 
@@ -18,7 +19,8 @@ export default async function ResultPage({ params }: { params: { testId: string 
   if (!attempt) notFound();
 
   return (
-    <div className="max-w-3xl mx-auto p-6 md:p-10 flex flex-col gap-6">
+    <AppShell active="tests">
+    <div className="flex flex-col gap-6">
       <div>
         <Link href={"/tests" as any} className="text-sm text-slate hover:text-ink">
           ← Test history
@@ -71,5 +73,6 @@ export default async function ResultPage({ params }: { params: { testId: string 
         ))}
       </div>
     </div>
+    </AppShell>
   );
 }

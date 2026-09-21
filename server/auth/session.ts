@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import crypto from "node:crypto";
 import { getEnv } from "@/lib/env";
+import { db } from "@/server/db/client";
 
 const COOKIE_NAME = "gate_ai_session";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
@@ -51,10 +52,31 @@ export function getSessionEmail(): string | null {
   return verify(raw);
 }
 
-export async function getCurrentUser() { const email = getSessionEmail(); return email ? { email, id: email, name: email.split("@")[0] } : null; }
+export interface SessionUser {
+  /** The User row id — this is what every userId column references. */
+  id: string;
+  email: string;
+  name: string;
+}
 
-export function requireUserId(): string {
+/** Resolves the session cookie to a real User row, creating it on first
+ * sign-in. Every caller that writes a userId (planner, DPP, mastery, mocks)
+ * needs the row id, not the email — passing the email violated
+ * `*_userId_fkey` on a fresh database. */
+export async function getCurrentUser(): Promise<SessionUser | null> {
   const email = getSessionEmail();
-  if (!email) throw new Error("UNAUTHORIZED");
-  return email;
+  if (!email) return null;
+  const user = await db.user.upsert({
+    where: { email },
+    update: {},
+    create: { email },
+  });
+  return { id: user.id, email: user.email, name: user.name ?? user.email.split("@")[0]! };
+}
+
+/** The signed-in user's row id. Throws so callers can map it to a 401. */
+export async function requireUserId(): Promise<string> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("UNAUTHORIZED");
+  return user.id;
 }
