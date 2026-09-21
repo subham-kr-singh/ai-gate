@@ -269,7 +269,7 @@ export default function TutorPage() {
               : "Confirm & update progress"}
           </button>
           {confirmState === "error" && (
-            <p className="text-xs text-red-600">
+            <p className="text-xs text-[#D98E2B]">
               Couldn&apos;t save — try the manual Quick Study Report form.
             </p>
           )}
@@ -280,13 +280,13 @@ export default function TutorPage() {
         .input {
           width: 100%;
           border-radius: 10px;
-          border: 1px solid #e3e0da;
+          border: 1px solid #E3E0DA;
           padding: 8px 10px;
           font-size: 14px;
           outline: none;
         }
         .input:focus {
-          box-shadow: 0 0 0 2px #0e8074;
+          box-shadow: 0 0 0 2px #0E8074;
         }
       `}</style>
       </div>

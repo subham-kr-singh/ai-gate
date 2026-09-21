@@ -31,7 +31,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
+    <main className="min-h-screen flex items-center justify-center px-4">
       <form onSubmit={handleSubmit} className="w-full max-w-sm">
         <div className="w-10 h-10 rounded-full bg-ink flex items-center justify-center text-white font-semibold text-sm mb-6">
           G
@@ -52,6 +52,6 @@ export default function LoginPage() {
           {loading ? "Signing in…" : "Sign in"}
         </Button>
       </form>
-    </div>
+    </main>
   );
 }

@@ -21,7 +21,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8F6F2] px-5">
+    <main className="flex min-h-screen items-center justify-center bg-[#F8F6F2] px-5">
       <div className="w-full max-w-md rounded-[24px] border border-[#E3E0DA] bg-white p-7">
         <h1 className="text-xl font-semibold text-[#111111]">That didn&apos;t load</h1>
         <p className="mt-2 text-sm text-[#77736D]">
@@ -47,6 +47,6 @@ export default function GlobalError({
           </Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

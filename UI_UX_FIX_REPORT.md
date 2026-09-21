@@ -135,6 +135,103 @@ manifest. Against a running production build, with a real signed-in session:
   language instead of raw JSON.
 - Deploying requires `CRON_SECRET`, `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`,
   `ALLOWED_EMAILS` and `NEXT_PUBLIC_APP_URL` to be set in the Vercel project.
-  `CRON_SECRET` is not in `.env.example` yet — worth adding.
+  All six are documented in `.env.example`.
 - `/api/chat` returns `kind: "unavailable"` when `LLM_API_KEY` is unset. That is
   the intended graceful degradation, not a bug.
+
+---
+
+# Second pass — feedback, typing, and status-code correctness
+
+Follow-up audit after the first report. Same method: every fix below was
+reproduced against a running production build and re-checked after the change.
+
+## 6. Silent success in client forms (the "no feedback" bug)
+
+Three client components set a success banner and then immediately called
+`router.refresh()`:
+
+- `components/flashcards/NewFlashcardForm.tsx`
+- `components/planner/PlanSettingsForm.tsx`
+- `components/planner/OverrideControls.tsx`
+
+`router.refresh()` re-renders the subtree from the server, which unmounts and
+remounts the client component that called it. The banner set one line earlier
+was therefore destroyed before it could be painted. Instrumenting the flashcard
+form confirmed the remount (mount 1 to mount 2 across a single submit). The
+write itself succeeded — the card appeared in the due queue — but the user saw
+the form clear with no confirmation, which reads as a failure and invites
+double submission.
+
+Fix: a shared `lib/use-delayed-refresh.ts` hook holds the refresh for 2.5s so
+the confirmation lands first, then pulls the fresh server data in behind it.
+The timer is cleared on unmount, and `useDelayedRefresh(true)` still refreshes
+immediately for flows with nothing to preserve.
+
+Verified after the fix: "Card added. It is due now.", "Plan saved.", and
+"Set this unit aside for 3 days." each stay on screen, and the page still picks
+up the new data afterwards.
+
+`components/dpp/DppQuestionCard.tsx` also calls `router.refresh()` after
+answering, but was left alone: it re-derives the verdict from the server-side
+`previousOutcome` prop, so the result survives the remount by design.
+
+## 7. Off-palette and inconsistent colour
+
+- `app/tutor/page.tsx` used `text-red-600` for a save failure — a Tailwind
+  default that appears nowhere in `DESIGN.md`. Now Amber (`#D98E2B`), matching
+  every other error state in the app.
+- Normalised lowercase `#0e8074` / `#e3e0da` in `app/tutor/page.tsx` and
+  `app/globals.css` to the canonical uppercase forms so the palette greps
+  exactly.
+
+The palette guard now returns only `DESIGN.md` values across `app/`,
+`components/`, and `lib/`.
+
+## 8. Malformed-id handling
+
+Any id that is not a cuid can never resolve, but the page would stream a 200
+skeleton and only then fail. `middleware.ts` now rejects a malformed dynamic
+segment before the shell is flushed and returns a real 404. The matcher covers
+`/`, `/syllabus`, `/practice`, `/tests`, and `/mocks`, with `/practice/dpp`
+excluded because it is a static index, not a unit id.
+
+This is also why `app/not-found.tsx`, `app/error.tsx`, and the login page gained
+a real `<main>` landmark — the 404 path is reachable, so it must be structured
+correctly.
+
+## 9. Navigation gap
+
+`NavRail`'s logo linked to `/planner` while `MobileNav`'s header had no link at
+all, so there was no way back to `/dashboard` from the shell on desktop, and
+none at all on mobile. Both now link to `/dashboard`, with the rail labelled
+"GATE AI — Dashboard".
+
+The dashboard's "Log study session" and "Tutor" links were typed
+`href={"/..." as any}`; the cast is gone and `next/link` now checks them.
+
+## 10. Type-safety cleanup
+
+Removed the remaining `as any` casts in `app/dashboard/page.tsx`,
+`app/practice/[unitId]/page.tsx`, `app/tests/[testId]/page.tsx`,
+`app/tests/[testId]/result/page.tsx`, and `app/practice/dpp/page.tsx` (the last
+being a `questionById` map and a statement read). Also fixed
+`server/domains/tests/mock.context.ts`, where `requireUserId()` returned an
+unawaited promise inside a `try` — a rejection would have escaped the adjacent
+`catch` and surfaced as an unhandled rejection instead of a 401. It is now
+awaited.
+
+`tsc --noEmit` and `eslint .` are both clean.
+
+## 11. Verification
+
+Against a clean production build, with a real signed-in session:
+
+- `npm run build`, `npm run typecheck`, `npm run lint` — all clean.
+- `npm test` — 182 passed, 5 skipped (the skips are pre-existing, AI-key gated).
+- Route sweep, desktop and mobile — 0 failures, no console errors, no horizontal
+  overflow.
+- API suite — 0 failures, including bad-id 404s and cron auth.
+- Flow suite — mock create, answer, autosave and reload; DPP verdict, solution
+  and recap; tutor fallback; flashcards — 0 console errors.
+- Malformed ids return 404; valid routes 200; `/practice/dpp` 200; `/` 307.

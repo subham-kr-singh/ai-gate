@@ -4,7 +4,7 @@ import Link from "next/link";
  * know who the visitor is, and AppShell resolves the signed-in initial. */
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#F8F6F2] px-5 text-center">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#F8F6F2] px-5 text-center">
       <p className="text-xs font-medium uppercase tracking-wide text-[#77736D]">404</p>
       <h1 className="text-xl font-semibold text-[#111111]">That page does not exist</h1>
       <p className="max-w-sm text-sm text-[#77736D]">
@@ -16,6 +16,6 @@ export default function NotFound() {
       >
         Back to Today
       </Link>
-    </div>
+    </main>
   );
 }

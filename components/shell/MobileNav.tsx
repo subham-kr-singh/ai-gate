@@ -37,7 +37,7 @@ export function MobileNav({ active = "today", initial = "G" }: { active?: NavKey
   return (
     <div className="lg:hidden">
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[#E3E0DA] bg-[#F8F6F2]/95 px-4 py-2 backdrop-blur">
-        <Link href="/planner" className="flex items-center gap-2 text-sm font-semibold text-[#111111]">
+        <Link href="/dashboard" className="flex items-center gap-2 text-sm font-semibold text-[#111111]">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#111111] text-xs font-semibold text-white" aria-hidden="true">
             G
           </span>

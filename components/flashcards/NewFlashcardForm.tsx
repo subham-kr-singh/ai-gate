@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { focusRing, pillDark } from "../planner/ui";
+import { useDelayedRefresh } from "@/lib/use-delayed-refresh";
 
 const KINDS = [
   ["DEFINITION", "Definition"],
@@ -16,7 +16,7 @@ const KINDS = [
 const field = `w-full rounded-[20px] bg-[#ECE9E3] px-4 py-3 text-sm outline-none placeholder:text-[#9B968E] ${focusRing}`;
 
 export function NewFlashcardForm() {
-  const router = useRouter();
+  const refreshSoon = useDelayedRefresh();
   const [kind, setKind] = useState("DEFINITION");
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
@@ -41,7 +41,7 @@ export function NewFlashcardForm() {
       setFront("");
       setBack("");
       setMsg({ tone: "ok", text: "Card added. It is due now." });
-      router.refresh();
+      refreshSoon();
     } catch {
       setMsg({ tone: "error", text: "You appear to be offline. Try again when you are back online." });
     } finally {

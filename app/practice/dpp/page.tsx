@@ -40,7 +40,7 @@ export default async function DppPage() {
 
   const dpp = await generateTodaysDPP({ userId: session.id, date: new Date() }, DPP_CONFIG_V1);
   const questions = await getQuestionsByIds(dpp.questions.map((q) => q.questionId));
-  const questionById = new Map(questions.map((q: any) => [q.id, q]));
+  const questionById = new Map(questions.map((q) => [q.id, q]));
 
   const total = dpp.questions.length;
   const completed = dpp.questions.filter((q) => q.completedAt).length;
@@ -89,7 +89,7 @@ export default async function DppPage() {
 
           {nextUp && (
             <Link
-              href={`/practice/dpp/${dpp.dppId}/question/${nextUp.questionId}` as any}
+              href={`/practice/dpp/${dpp.dppId}/question/${nextUp.questionId}`}
               className="inline-flex h-10 w-fit items-center rounded-full bg-[#111111] px-5 text-sm font-medium text-white"
             >
               Continue — question {nextUp.position} of {total}
@@ -106,11 +106,11 @@ export default async function DppPage() {
                 return (
                   <li key={item.questionId} className="flex items-center justify-between py-3">
                     <Link
-                      href={`/practice/dpp/${dpp.dppId}/question/${item.questionId}` as any}
+                      href={`/practice/dpp/${dpp.dppId}/question/${item.questionId}`}
                       className="min-w-0 flex-1 pr-4"
                     >
                       <p className="truncate text-sm text-[#111111]">
-                        {(question as any)?.statement?.substring(0, 50) ?? `Question ${item.position}`}
+                        {question?.statement?.substring(0, 50) ?? `Question ${item.position}`}
                       </p>
                       <p className={`mt-0.5 text-xs ${urgent ? "text-[#D98E2B]" : "text-[#77736D]"}`}>
                         {SOURCE_LABEL[item.source]}

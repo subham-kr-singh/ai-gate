@@ -53,10 +53,10 @@ export default async function DashboardPage() {
 
   const aside = (
     <>
-      <Link href={"/study-report" as any} className={`${ui.btn} w-full`}>+ Log study session</Link>
+      <Link href="/study-report" className={`${ui.btn} w-full`}>+ Log study session</Link>
 
       <Link
-        href={"/tutor" as any}
+        href="/tutor"
         className="text-sm text-[#111111] underline-offset-2 hover:underline"
       >
         Tutor — describe a session and I&apos;ll draft the report

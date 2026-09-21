@@ -137,7 +137,7 @@ import { requireUserId as getSessionUserId } from '@/server/auth/session';
 /** Throws UnauthorizedError (→ HTTP 401) when nobody is signed in. */
 export async function requireUserId(): Promise<string> {
   try {
-    return getSessionUserId();
+    return await getSessionUserId();
   } catch {
     throw new UnauthorizedError();
   }

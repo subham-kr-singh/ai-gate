@@ -9,9 +9,12 @@ coverage
 # local QA harnesses (Playwright smoke scripts, question-bank generators)
 qa-flows.js
 qa-snap.js
+qa-pages.js
+qa-api.js
 genbank.mjs
 genq.mjs
 pgstart.mjs
+pgkeep.mjs
 
 # TypeScript build cache
 tsconfig.tsbuildinfo
