@@ -1,0 +1,195 @@
+// ---------------------------------------------------------------------------
+// Part 5 additions — append everything below to prisma/schema.prisma, then:
+//   npx prisma migrate dev --name part5_planner
+//
+// userId / unitId / conceptId are plain strings on purpose: the models append
+// cleanly without editing User, Unit or Concept. Add @relation lines later if
+// you want database-level foreign keys.
+// ---------------------------------------------------------------------------
+
+enum PlanItemStatus {
+  PENDING
+  ACTIVE
+  PROVISIONALLY_COMPLETE
+  GOOD_ENOUGH
+  MOVED_ON
+  MASTERED
+}
+
+enum DifficultyClass {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum OverrideChoice {
+  FOLLOW
+  OVERRIDE
+  SKIP
+  SNOOZE
+}
+
+enum SnapshotKind {
+  DAILY
+  WEEKLY
+}
+
+/// One row per student: exam date, phases and soft pace targets.
+model StudyPlan {
+  id                String     @id @default(cuid())
+  userId            String     @unique
+  examDate          DateTime?  @db.Date
+  prepStartDate     DateTime   @db.Date
+  timezone          String     @default("Asia/Kolkata")
+  /// Soft target ("roughly a unit a day"). Never a deadline.
+  targetDaysPerUnit Float      @default(1)
+  maxExtensionDays  Float      @default(2)
+  /// Optional ["YYYY-MM-DD" x3]: explicit start dates of phases 2, 3 and 4.
+  phaseStarts       Json?
+  lastMockAt        DateTime?
+  mocksCompleted    Int        @default(0)
+  plannerVersion    String     @default("planner-v1")
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  items             PlanItem[]
+}
+
+/// Master Plan: one row per unit, in syllabus order. Planned vs actual lives here.
+model PlanItem {
+  id               String          @id @default(cuid())
+  planId           String
+  plan             StudyPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  userId           String
+  unitId           String
+  sequence         Int
+  status           PlanItemStatus  @default(PENDING)
+  difficultyClass  DifficultyClass @default(MEDIUM)
+  targetDays       Float           @default(1)
+  maxExtensionDays Float           @default(2)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  actualDays       Float?
+  exitReason       String?
+  /// { conceptIds: string[], readiness: number | null } left unresolved when the unit closed.
+  unresolved       Json?
+  snoozedUntil     DateTime?
+  revisionCount    Int             @default(0)
+  lastRevisedAt    DateTime?
+  nextRevisionAt   DateTime?
+  plannerVersion   String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([userId, unitId])
+  @@index([userId, status])
+}
+
+/// What the planner recommended, why, and the state it started from.
+model PlannerDecision {
+  id              String         @id @default(cuid())
+  userId          String
+  forDate         DateTime       @db.Date
+  action          String
+  targetType      String
+  unitId          String?
+  conceptId       String?
+  priority        Float
+  reasons         Json
+  steps           Json
+  alternatives    Json
+  phase           Int
+  inputHash       String
+  priorityVersion String
+  plannerVersion  String
+  /// Snapshot of the target unit before the intervention (architecture section 4.4).
+  beforeState     Json?
+  /// Filled later from fresh questions, PYQs or mocks, never from the mastery number itself.
+  outcome         Json?
+  evaluatedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  overrides       UserOverride[]
+
+  @@unique([userId, forDate, inputHash])
+  @@index([userId, forDate])
+}
+
+/// Explicit student decisions that differ from, or respond to, a recommendation.
+model UserOverride {
+  id                 String          @id @default(cuid())
+  userId             String
+  forDate            DateTime        @db.Date
+  decisionId         String?
+  decision           PlannerDecision? @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+  choice             OverrideChoice
+  recommendedAction  String?
+  recommendedUnitId  String?
+  chosenUnitId       String?
+  reason             String?
+  snoozedUntil       DateTime?
+  /// Weak concepts that stay owed for revision after the student moved on.
+  unresolvedSnapshot Json?
+  createdAt          DateTime        @default(now())
+
+  @@index([userId, forDate])
+}
+
+/// Flashcards scheduled by ts-fsrs. Columns mirror the ts-fsrs Card.
+model Flashcard {
+  id            String            @id @default(cuid())
+  userId        String
+  conceptId     String?
+  unitId        String?
+  kind          String            @default("DEFINITION")
+  front         String
+  back          String
+  suspended     Boolean           @default(false)
+  state         Int               @default(0)
+  due           DateTime
+  stability     Float             @default(0)
+  difficulty    Float             @default(0)
+  elapsedDays   Int               @default(0)
+  scheduledDays Int               @default(0)
+  learningSteps Int               @default(0)
+  reps          Int               @default(0)
+  lapses        Int               @default(0)
+  lastReview    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  reviews       FlashcardReview[]
+
+  @@index([userId, due])
+  @@index([userId, conceptId])
+}
+
+/// Append-only review history. Never rewritten when the scheduler changes.
+model FlashcardReview {
+  id            String    @id @default(cuid())
+  flashcardId   String
+  flashcard     Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+  userId        String
+  rating        Int
+  stateBefore   Int
+  dueBefore     DateTime
+  stability     Float
+  difficulty    Float
+  scheduledDays Int
+  reviewedAt    DateTime
+
+  @@index([userId, reviewedAt])
+}
+
+/// Daily and weekly progress snapshots (pace history, weekly comparison).
+model PlanSnapshot {
+  id         String       @id @default(cuid())
+  userId     String
+  kind       SnapshotKind
+  capturedOn DateTime     @db.Date
+  phase      Int
+  daysToExam Int?
+  metrics    Json
+  report     Json?
+  createdAt  DateTime     @default(now())
+
+  @@unique([userId, kind, capturedOn])
+  @@index([userId, kind, capturedOn])
+}

@@ -1,0 +1,247 @@
+// ─────────────────────────────────────────────────────────────────────────
+// GATE AI - Part 3 (learning state) schema additions.
+//
+// APPEND this file's contents to prisma/schema.prisma, then run:
+//   npx prisma migrate dev --name part3_learning_state
+//
+// References to Part 1/2 tables (User, Unit, Topic, Concept, Question, Answer)
+// are plain String ids with indexes, NOT @relation fields, so you do not have
+// to add back-relations to existing models. If you want database-level foreign
+// keys later, add @relation + back-relations in a follow-up migration.
+// ─────────────────────────────────────────────────────────────────────────
+
+enum MistakeType {
+  CONCEPTUAL_GAP
+  CALCULATION_ERROR
+  MISREAD
+  FORMULA_RECALL
+  CONFUSED_CONCEPTS
+  CARELESS_ERROR
+  GUESS
+  TIME_PRESSURE
+}
+
+enum ClassificationSource {
+  USER
+  AI
+}
+
+enum CoverageStatus {
+  NOT_STARTED
+  LEARNING
+  PRACTICING
+  PROVISIONALLY_COMPLETE
+  MASTERED
+  REVISION_DUE
+}
+
+/// One row per wrong graded answer. mistakeType is null until the student
+/// tags it (one tap). answerId is Part 2's Answer.id and makes creation idempotent.
+model Mistake {
+  id                       String                @id @default(cuid())
+  userId                   String
+  answerId                 String?
+  questionId               String?
+  unitId                   String?
+  topicId                  String?
+  mistakeType              MistakeType?
+  classificationSource     ClassificationSource?
+  classificationConfidence Float?
+  note                     String?
+  resolved                 Boolean               @default(false)
+  resolvedAt               DateTime?
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  concepts                 MistakeConcept[]
+
+  @@unique([userId, answerId])
+  @@index([userId, resolved])
+  @@index([userId, unitId])
+  @@index([userId, mistakeType])
+  @@index([userId, questionId])
+}
+
+model MistakeConcept {
+  mistakeId String
+  conceptId String
+  mistake   Mistake @relation(fields: [mistakeId], references: [id], onDelete: Cascade)
+
+  @@id([mistakeId, conceptId])
+  @@index([conceptId])
+}
+
+/// Evidence-based state per concept. Raw attempts stay in Part 2 (append-only);
+/// this is derived and can be rebuilt.
+model ConceptStats {
+  id               String    @id @default(cuid())
+  userId           String
+  conceptId        String
+  completion       Float     @default(0)
+  mastery          Float?
+  retention        Float?
+  confidence       Float?
+  recentAccuracy   Float?
+  attempts         Int       @default(0)
+  correct          Int       @default(0)
+  mistakes         Int       @default(0)
+  averageTimeMs    Float?
+  lastSeen         DateTime?
+  pyqAttempts      Int       @default(0)
+  pyqCorrect       Int       @default(0)
+  algorithmVersion String    @default("v1")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([userId, conceptId])
+  @@index([userId, mastery])
+}
+
+model TopicStats {
+  id               String    @id @default(cuid())
+  userId           String
+  topicId          String
+  completion       Float     @default(0)
+  mastery          Float?
+  retention        Float?
+  confidence       Float?
+  recentAccuracy   Float?
+  attempts         Int       @default(0)
+  correct          Int       @default(0)
+  mistakes         Int       @default(0)
+  averageTimeMs    Float?
+  lastSeen         DateTime?
+  pyqAttempts      Int       @default(0)
+  pyqCorrect       Int       @default(0)
+  algorithmVersion String    @default("v1")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([userId, topicId])
+  @@index([userId, mastery])
+}
+
+/// Unit-level, evidence-validated state (what the data says), separate from
+/// StudentCoverage (what the student says they covered).
+model LearningState {
+  id                  String         @id @default(cuid())
+  userId              String
+  unitId              String
+  status              CoverageStatus @default(NOT_STARTED)
+  coverage            Float          @default(0)
+  mastery             Float          @default(0)
+  practiceAccuracy    Float?
+  pyqAccuracy         Float?
+  evidence            Float          @default(0)
+  openMistakes        Int            @default(0)
+  readiness           Float?
+  decision            String         @default("CONTINUE")
+  reasons             Json           @default("[]")
+  // Cumulative self-reported questions from Quick Study Reports.
+  reportedAttempts    Int            @default(0)
+  reportedCorrect     Int            @default(0)
+  reportedPyqAttempts Int            @default(0)
+  reportedPyqCorrect  Int            @default(0)
+  userWantsToContinue Boolean        @default(false)
+  completionVersion   String         @default("v1")
+  masteryVersion      String         @default("v1")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@unique([userId, unitId])
+  @@index([userId, status])
+}
+
+/// What the student reports having covered. Never proof of mastery.
+model StudentCoverage {
+  id              String         @id @default(cuid())
+  userId          String
+  unitId          String
+  reportedStatus  CoverageStatus
+  reportedPercent Float?
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([userId, unitId])
+}
+
+/// Personal preferences. Soft targets only - Part 5 reads these.
+model StudentPlan {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  targetUnitsPerDay Float   @default(1)
+  maxExtensionDays Int      @default(2)
+  fixedTimeSlots   Boolean  @default(false)
+  notes            String?
+  updatedAt        DateTime @updatedAt
+}
+
+/// Pre-FSRS interval ladder per concept. Part 5 adds FSRS columns for flashcards.
+model ReviewState {
+  id             String    @id @default(cuid())
+  userId         String
+  conceptId      String
+  stage          Int       @default(0)
+  lapses         Int       @default(0)
+  dueAt          DateTime
+  lastReviewedAt DateTime?
+  ladderVersion  String    @default("v1")
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, conceptId])
+  @@index([userId, dueAt])
+}
+
+model StudySession {
+  id        String              @id @default(cuid())
+  userId    String
+  unitId    String?
+  source    String              @default("MANUAL")
+  startedAt DateTime            @default(now())
+  report    StudySessionReport?
+
+  @@index([userId, startedAt])
+}
+
+model StudySessionReport {
+  id                 String         @id @default(cuid())
+  sessionId          String         @unique
+  session            StudySession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId             String
+  clientRequestId    String
+  unitId             String
+  status             CoverageStatus
+  topicsCoveredIds   String[]
+  weakTopicIds       String[]
+  questionsAttempted Int            @default(0)
+  questionsCorrect   Int            @default(0)
+  pyqAttempted       Int            @default(0)
+  pyqCorrect         Int            @default(0)
+  selfConfidence     Int?
+  continueUnit       Boolean        @default(false)
+  notes              String?
+  createdAt          DateTime       @default(now())
+
+  @@unique([userId, clientRequestId])
+  @@index([userId, unitId, createdAt])
+}
+
+/// Guards recordAnswers() against double-counting an Answer on retries.
+model AppliedOutcome {
+  answerId         String   @id
+  userId           String
+  algorithmVersion String
+  appliedAt        DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Raw event log (QUESTION_VIEWED, TOPIC_STUDIED, MISTAKE_CREATED, ...).
+/// Keep payloads small; prune old rows per the retention policy.
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  payload   Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([userId, type, createdAt])
+}

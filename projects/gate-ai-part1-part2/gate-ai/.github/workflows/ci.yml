@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+        env:
+          # Placeholder values — the build only needs these to be present
+          # and schema-valid; Part 1/2 pages that hit the DB are server
+          # components rendered at request time, not at build time.
+          DATABASE_URL: "postgresql://user:pass@localhost:5432/gate_ai"
+          DIRECT_URL: "postgresql://user:pass@localhost:5432/gate_ai"
+          AUTH_SECRET: "ci-placeholder-secret-not-for-production-use"
+          ALLOWED_EMAILS: "ci@example.com"

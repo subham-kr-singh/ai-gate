@@ -1,0 +1,106 @@
+name: backup
+
+# Daily encrypted PostgreSQL dump to a private S3-compatible bucket (Backblaze B2).
+# Secrets: DIRECT_URL (session-mode or direct connection, NOT the transaction pooler),
+#          BACKUP_PASSPHRASE, B2_ENDPOINT, B2_BUCKET, B2_KEY_ID, B2_APP_KEY.
+# Keep several versions by turning on the bucket's lifecycle "keep all versions" rule.
+# GitHub runners are IPv4-only: use Supabase's session pooler URL if the direct host is IPv6-only.
+
+on:
+  schedule:
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+    inputs:
+      restore_test:
+        description: "Also restore the newest backup into a scratch database and check it"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APP_KEY }}
+  AWS_DEFAULT_REGION: us-east-1
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Dump
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: pg_dump --format=custom --no-owner --no-privileges --file gate-ai.dump "$DIRECT_URL"
+
+      - name: Encrypt
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          STAMP=$(date -u +%Y-%m-%dT%H%M%SZ)
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" \
+              --symmetric --cipher-algo AES256 --output "gate-ai-$STAMP.dump.gpg" gate-ai.dump
+          rm gate-ai.dump
+
+      - name: Upload and record the success
+        env:
+          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+          B2_BUCKET: ${{ secrets.B2_BUCKET }}
+        run: |
+          FILE="gate-ai-$STAMP.dump.gpg"
+          SIZE=$(stat -c %s "$FILE")
+          aws s3 cp "$FILE" "s3://$B2_BUCKET/backups/$FILE" --endpoint-url "$B2_ENDPOINT"
+          # The app reads this small file to show "Last successful backup" and its age.
+          printf '{"at":"%s","key":"backups/%s","sizeBytes":%s}\n' "$STAMP" "$FILE" "$SIZE" > latest.json
+          aws s3 cp latest.json "s3://$B2_BUCKET/backups/latest.json" --endpoint-url "$B2_ENDPOINT"
+
+  restore-test:
+    if: github.event_name == 'workflow_dispatch' && inputs.restore_test
+    needs: dump
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: scratch
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Fetch and decrypt the newest backup
+        env:
+          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+          B2_BUCKET: ${{ secrets.B2_BUCKET }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          aws s3 cp "s3://$B2_BUCKET/backups/latest.json" latest.json --endpoint-url "$B2_ENDPOINT"
+          KEY=$(python3 -c "import json;print(json.load(open('latest.json'))['key'])")
+          aws s3 cp "s3://$B2_BUCKET/$KEY" backup.gpg --endpoint-url "$B2_ENDPOINT"
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$BACKUP_PASSPHRASE" --decrypt --output gate-ai.dump backup.gpg
+
+      - name: Restore into a scratch database and check it
+        env:
+          PGPASSWORD: scratch
+        run: |
+          createdb -h localhost -U postgres restored
+          pg_restore -h localhost -U postgres --no-owner --dbname restored gate-ai.dump
+          psql -h localhost -U postgres -d restored -tAc 'SELECT count(*) FROM "Unit"' | tee units.txt
+          test "$(cat units.txt)" -gt 0
+          psql -h localhost -U postgres -d restored -tAc 'SELECT count(*) FROM "PlanItem"'

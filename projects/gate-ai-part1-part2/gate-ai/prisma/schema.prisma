@@ -1,0 +1,340 @@
+// GATE AI — Prisma schema
+// Part 1 (auth + canonical syllabus) + Part 2 (question bank, test engine,
+// grading) entities. Later parts (mastery, DPP, planner, AI) extend this
+// file — see PROJECT_PLAN.md for the full build order.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------
+// Part 1 — Auth
+// ---------------------------------------------------------------------
+
+// Single-user-oriented, but modeled as a table so the schema survives a
+// future multi-user migration without a rewrite (see architecture §2).
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  tests     Test[]
+  attempts  Attempt[]
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------
+// Part 1 — Canonical syllabus (versioned; see architecture §"Current
+// Syllabus Is the Source of Truth" and design.md sync notes)
+// ---------------------------------------------------------------------
+
+model SyllabusVersion {
+  id        String   @id @default(cuid())
+  label     String // e.g. "GATE-CS-2027-v1"
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  subjects Subject[]
+
+  @@map("syllabus_versions")
+}
+
+model Subject {
+  id                String @id @default(cuid())
+  syllabusVersionId String
+  code              String // e.g. "DBMS", "OS" — stable short code
+  name              String
+  order             Int    @default(0)
+
+  syllabusVersion SyllabusVersion @relation(fields: [syllabusVersionId], references: [id], onDelete: Cascade)
+  units           Unit[]
+  questions       Question[]
+
+  @@unique([syllabusVersionId, code])
+  @@map("subjects")
+}
+
+model Unit {
+  id        String @id @default(cuid())
+  subjectId String
+  name      String
+  order     Int    @default(0)
+
+  // Part 5/architecture "Maximum Unit Duration" — kept on Unit so the
+  // planner has a versioned, configurable target from day one.
+  targetDurationDays   Float?
+  maximumExtensionDays Float?
+
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  topics    Topic[]
+  questions Question[]
+
+  @@unique([subjectId, name])
+  @@map("units")
+}
+
+model Topic {
+  id     String @id @default(cuid())
+  unitId String
+  name   String
+  order  Int    @default(0)
+
+  unit      Unit       @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  concepts  Concept[]
+  questions Question[]
+
+  @@unique([unitId, name])
+  @@map("topics")
+}
+
+model Concept {
+  id      String @id @default(cuid())
+  topicId String
+  name    String
+  order   Int    @default(0)
+
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  dependsOn    ConceptDependency[] @relation("ConceptDependent")
+  dependedOnBy ConceptDependency[] @relation("ConceptPrerequisite")
+
+  questionConcepts QuestionConcept[]
+
+  @@unique([topicId, name])
+  @@map("concepts")
+}
+
+// Prerequisite edges — see architecture §11 "Concept Dependency Graph"
+model ConceptDependency {
+  id             String @id @default(cuid())
+  conceptId      String // the dependent concept
+  prerequisiteId String // the concept that must come first
+
+  concept      Concept @relation("ConceptDependent", fields: [conceptId], references: [id], onDelete: Cascade)
+  prerequisite Concept @relation("ConceptPrerequisite", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@unique([conceptId, prerequisiteId])
+  @@map("concept_dependencies")
+}
+
+// ---------------------------------------------------------------------
+// Part 2 — Question bank
+// ---------------------------------------------------------------------
+
+enum QuestionType {
+  MCQ
+  MSQ
+  NAT
+}
+
+enum QuestionStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum DifficultySource {
+  MANUAL
+  ESTIMATED
+}
+
+model Question {
+  id        String @id @default(cuid())
+  subjectId String
+  unitId    String
+  topicId   String
+
+  type   QuestionType
+  marks  Float
+  negativeMarks Float @default(0)
+
+  statement String
+  // MCQ/MSQ only — null for NAT. Stored as JSON: [{ id, text }]
+  options   Json?
+  // MCQ: single option id. MSQ: array of option ids. NAT: numeric string.
+  correctAnswer Json
+  // NAT tolerance band, e.g. { min: 4.9, max: 5.1 }
+  natTolerance  Json?
+  solution      String?
+
+  year   Int?
+  source String?
+  sourceUrl String?
+  license   String?
+
+  difficulty         Int               @default(3) // 1 (easy) – 5 (hard)
+  difficultySource   DifficultySource  @default(MANUAL)
+  difficultyVersion  String            @default("v1")
+
+  status      QuestionStatus @default(APPROVED)
+  version     Int            @default(1)
+  contentHash String         @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subject Subject @relation(fields: [subjectId], references: [id])
+  unit    Unit    @relation(fields: [unitId], references: [id])
+  topic   Topic   @relation(fields: [topicId], references: [id])
+
+  concepts     QuestionConcept[]
+  testQuestions TestQuestion[]
+  answers      Answer[]
+
+  @@index([subjectId, unitId, topicId])
+  @@index([status, difficulty])
+  @@map("questions")
+}
+
+model QuestionConcept {
+  id         String @id @default(cuid())
+  questionId String
+  conceptId  String
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  concept  Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, conceptId])
+  @@map("question_concepts")
+}
+
+// ---------------------------------------------------------------------
+// Part 2 — Grading
+// ---------------------------------------------------------------------
+
+// One row per (examYear, questionType) marking rule. Never hard-code
+// marking logic — see architecture §21 "GATE Grading Engine".
+model MarkingScheme {
+  id           String       @id @default(cuid())
+  examYear     Int
+  questionType QuestionType
+
+  positiveMarks Float
+  // For MCQ: fraction of positiveMarks deducted on a wrong answer, e.g. 1/3.
+  // For MSQ: deduction policy is partial-marking (see grading.service).
+  negativeMarksFraction Float @default(0)
+  allowsPartialMarking  Boolean @default(false) // MSQ
+
+  createdAt DateTime @default(now())
+
+  @@unique([examYear, questionType])
+  @@map("marking_schemes")
+}
+
+// ---------------------------------------------------------------------
+// Part 2 — Test engine
+// ---------------------------------------------------------------------
+
+enum TestType {
+  TOPIC_QUIZ
+  MOCK
+}
+
+enum TestStatus {
+  IN_PROGRESS
+  SUBMITTED
+  ABANDONED
+}
+
+model Test {
+  id       String     @id @default(cuid())
+  userId   String
+  type     TestType
+  examYear Int // which MarkingScheme year applies
+  title    String
+
+  status      TestStatus @default(IN_PROGRESS)
+  startedAt   DateTime   @default(now())
+  submittedAt DateTime?
+
+  // Part 6 mock support — server-authoritative deadline.
+  deadlineAt DateTime?
+
+  totalMarks   Float?
+  scoredMarks  Float?
+  accuracy     Float?
+
+  // In-progress autosave state, keyed by questionId. Only the final
+  // submit writes the authoritative, append-only Attempt/Answer rows —
+  // this field is disposable scratch state, not historical evidence.
+  // Shape: { [questionId]: { seq, selectedAnswer, confidence?,
+  //   markedForReview?, timeTakenMs?, updatedAt } }
+  draftAnswers Json?
+
+  user          User           @relation(fields: [userId], references: [id])
+  testQuestions TestQuestion[]
+  attempts      Attempt[]
+
+  @@index([userId, status])
+  @@map("tests")
+}
+
+model TestQuestion {
+  id         String @id @default(cuid())
+  testId     String
+  questionId String
+  order      Int
+
+  test     Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([testId, questionId])
+  @@unique([testId, order])
+  @@map("test_questions")
+}
+
+// One attempt = one submitted test instance. Answers are append-only
+// child rows (architecture §24 "Attempt History" — never rewritten).
+model Attempt {
+  id     String @id @default(cuid())
+  userId String
+  testId String
+
+  submittedAt DateTime @default(now())
+  totalMarks  Float
+  scoredMarks Float
+  accuracy    Float
+
+  user    User     @relation(fields: [userId], references: [id])
+  test    Test     @relation(fields: [testId], references: [id])
+  answers Answer[]
+
+  @@map("attempts")
+}
+
+model Answer {
+  id         String   @id @default(cuid())
+  attemptId  String
+  questionId String
+  userId     String
+
+  // Monotonically increasing per (testId, questionId) — see architecture
+  // "Autosave and Phone Reliability". Guards against an older autosave
+  // request overwriting a newer one on a flaky connection.
+  seq Int
+
+  selectedAnswer Json // same shape as Question.correctAnswer
+  correct        Boolean
+  marks          Float
+  timeTakenMs    Int?
+  confidence     Int? // 1–4, optional (architecture §16)
+  markedForReview Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  attempt  Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([attemptId, questionId])
+  @@index([questionId])
+  @@map("answers")
+}

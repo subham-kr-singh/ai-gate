@@ -50,3 +50,5 @@ export function getSessionEmail(): string | null {
   if (!raw) return null;
   return verify(raw);
 }
+
+export async function getCurrentUser() { const email = getSessionEmail(); return email ? { email, id: email, name: email.split("@")[0] } : null; }

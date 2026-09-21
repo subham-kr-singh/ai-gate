@@ -25,8 +25,9 @@ model User {
   name      String?
   createdAt DateTime @default(now())
 
-  tests     Test[]
-  attempts  Attempt[]
+  tests    Test[]
+  attempts Attempt[]
+  DPP      DPP[]
 
   @@map("users")
 }
@@ -153,27 +154,27 @@ model Question {
   unitId    String
   topicId   String
 
-  type   QuestionType
-  marks  Float
-  negativeMarks Float @default(0)
+  type          QuestionType
+  marks         Float
+  negativeMarks Float        @default(0)
 
-  statement String
+  statement     String
   // MCQ/MSQ only — null for NAT. Stored as JSON: [{ id, text }]
-  options   Json?
+  options       Json?
   // MCQ: single option id. MSQ: array of option ids. NAT: numeric string.
   correctAnswer Json
   // NAT tolerance band, e.g. { min: 4.9, max: 5.1 }
   natTolerance  Json?
   solution      String?
 
-  year   Int?
-  source String?
+  year      Int?
+  source    String?
   sourceUrl String?
   license   String?
 
-  difficulty         Int               @default(3) // 1 (easy) – 5 (hard)
-  difficultySource   DifficultySource  @default(MANUAL)
-  difficultyVersion  String            @default("v1")
+  difficulty        Int              @default(3) // 1 (easy) – 5 (hard)
+  difficultySource  DifficultySource @default(MANUAL)
+  difficultyVersion String           @default("v1")
 
   status      QuestionStatus @default(APPROVED)
   version     Int            @default(1)
@@ -186,9 +187,10 @@ model Question {
   unit    Unit    @relation(fields: [unitId], references: [id])
   topic   Topic   @relation(fields: [topicId], references: [id])
 
-  concepts     QuestionConcept[]
+  concepts      QuestionConcept[]
   testQuestions TestQuestion[]
-  answers      Answer[]
+  answers       Answer[]
+  DPPQuestion   DPPQuestion[]
 
   @@index([subjectId, unitId, topicId])
   @@index([status, difficulty])
@@ -218,10 +220,10 @@ model MarkingScheme {
   examYear     Int
   questionType QuestionType
 
-  positiveMarks Float
+  positiveMarks         Float
   // For MCQ: fraction of positiveMarks deducted on a wrong answer, e.g. 1/3.
   // For MSQ: deduction policy is partial-marking (see grading.service).
-  negativeMarksFraction Float @default(0)
+  negativeMarksFraction Float   @default(0)
   allowsPartialMarking  Boolean @default(false) // MSQ
 
   createdAt DateTime @default(now())
@@ -246,7 +248,7 @@ enum TestStatus {
 }
 
 model Test {
-  id       String     @id @default(cuid())
+  id       String   @id @default(cuid())
   userId   String
   type     TestType
   examYear Int // which MarkingScheme year applies
@@ -259,9 +261,9 @@ model Test {
   // Part 6 mock support — server-authoritative deadline.
   deadlineAt DateTime?
 
-  totalMarks   Float?
-  scoredMarks  Float?
-  accuracy     Float?
+  totalMarks  Float?
+  scoredMarks Float?
+  accuracy    Float?
 
   // In-progress autosave state, keyed by questionId. Only the final
   // submit writes the authoritative, append-only Attempt/Answer rows —
@@ -312,7 +314,7 @@ model Attempt {
 }
 
 model Answer {
-  id         String   @id @default(cuid())
+  id         String @id @default(cuid())
   attemptId  String
   questionId String
   userId     String
@@ -322,11 +324,11 @@ model Answer {
   // request overwriting a newer one on a flaky connection.
   seq Int
 
-  selectedAnswer Json // same shape as Question.correctAnswer
-  correct        Boolean
-  marks          Float
-  timeTakenMs    Int?
-  confidence     Int? // 1–4, optional (architecture §16)
+  selectedAnswer  Json // same shape as Question.correctAnswer
+  correct         Boolean
+  marks           Float
+  timeTakenMs     Int?
+  confidence      Int? // 1–4, optional (architecture §16)
   markedForReview Boolean @default(false)
 
   createdAt DateTime @default(now())
@@ -338,3 +340,326 @@ model Answer {
   @@index([questionId])
   @@map("answers")
 }
+
+// ---------------------------------------------------------------------
+// Part 3 — Learning State (mastery, mistakes, coverage)
+// ---------------------------------------------------------------------
+
+enum MistakeType {
+  CONCEPTUAL_GAP
+  CALCULATION_ERROR
+  MISREAD
+  FORMULA_RECALL
+  CONFUSED_CONCEPTS
+  CARELESS_ERROR
+  GUESS
+  TIME_PRESSURE
+}
+
+enum ClassificationSource {
+  USER
+  AI
+}
+
+enum CoverageStatus {
+  NOT_STARTED
+  LEARNING
+  PRACTICING
+  PROVISIONALLY_COMPLETE
+  MASTERED
+  REVISION_DUE
+}
+
+/// One row per wrong graded answer. mistakeType is null until the student
+/// tags it (one tap). answerId is Part 2's Answer.id and makes creation idempotent.
+model Mistake {
+  id                       String                @id @default(cuid())
+  userId                   String
+  answerId                 String?
+  questionId               String?
+  unitId                   String?
+  topicId                  String?
+  mistakeType              MistakeType?
+  classificationSource     ClassificationSource?
+  classificationConfidence Float?
+  note                     String?
+  resolved                 Boolean               @default(false)
+  resolvedAt               DateTime?
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  concepts                 MistakeConcept[]
+
+  @@unique([userId, answerId])
+  @@index([userId, resolved])
+  @@index([userId, unitId])
+  @@index([userId, mistakeType])
+  @@index([userId, questionId])
+}
+
+model MistakeConcept {
+  mistakeId String
+  conceptId String
+  mistake   Mistake @relation(fields: [mistakeId], references: [id], onDelete: Cascade)
+
+  @@id([mistakeId, conceptId])
+  @@index([conceptId])
+}
+
+/// Evidence-based state per concept. Raw attempts stay in Part 2 (append-only);
+/// this is derived and can be rebuilt.
+model ConceptStats {
+  id               String    @id @default(cuid())
+  userId           String
+  conceptId        String
+  completion       Float     @default(0)
+  mastery          Float?
+  retention        Float?
+  confidence       Float?
+  recentAccuracy   Float?
+  attempts         Int       @default(0)
+  correct          Int       @default(0)
+  mistakes         Int       @default(0)
+  averageTimeMs    Float?
+  lastSeen         DateTime?
+    nextReviewAt     DateTime?
+  pyqAttempts      Int       @default(0)
+  pyqCorrect       Int       @default(0)
+  algorithmVersion String    @default("v1")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([userId, conceptId])
+  @@index([userId, mastery])
+}
+
+model TopicStats {
+  id               String    @id @default(cuid())
+  userId           String
+  topicId          String
+  completion       Float     @default(0)
+  mastery          Float?
+  retention        Float?
+  confidence       Float?
+  recentAccuracy   Float?
+  attempts         Int       @default(0)
+  correct          Int       @default(0)
+  mistakes         Int       @default(0)
+  averageTimeMs    Float?
+  lastSeen         DateTime?
+    nextReviewAt     DateTime?
+  pyqAttempts      Int       @default(0)
+  pyqCorrect       Int       @default(0)
+  algorithmVersion String    @default("v1")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([userId, topicId])
+  @@index([userId, mastery])
+}
+
+/// Unit-level, evidence-validated state (what the data says), separate from
+/// StudentCoverage (what the student says they covered).
+model LearningState {
+  id                  String         @id @default(cuid())
+  userId              String
+  unitId              String
+  status              CoverageStatus @default(NOT_STARTED)
+  coverage            Float          @default(0)
+  mastery             Float          @default(0)
+  practiceAccuracy    Float?
+  pyqAccuracy         Float?
+  evidence            Float          @default(0)
+  openMistakes        Int            @default(0)
+  readiness           Float?
+  decision            String         @default("CONTINUE")
+  reasons             Json           @default("[]")
+  // Cumulative self-reported questions from Quick Study Reports.
+  reportedAttempts    Int            @default(0)
+  reportedCorrect     Int            @default(0)
+  reportedPyqAttempts Int            @default(0)
+  reportedPyqCorrect  Int            @default(0)
+  userWantsToContinue Boolean        @default(false)
+  completionVersion   String         @default("v1")
+  masteryVersion      String         @default("v1")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@unique([userId, unitId])
+  @@index([userId, status])
+}
+
+/// What the student reports having covered. Never proof of mastery.
+model StudentCoverage {
+  id              String         @id @default(cuid())
+  userId          String
+  unitId          String
+  reportedStatus  CoverageStatus
+  reportedPercent Float?
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([userId, unitId])
+}
+
+/// Personal preferences. Soft targets only - Part 5 reads these.
+model StudentPlan {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  targetUnitsPerDay Float    @default(1)
+  maxExtensionDays  Int      @default(2)
+  fixedTimeSlots    Boolean  @default(false)
+  notes             String?
+  updatedAt         DateTime @updatedAt
+}
+
+/// Pre-FSRS interval ladder per concept. Part 5 adds FSRS columns for flashcards.
+model ReviewState {
+  id             String    @id @default(cuid())
+  userId         String
+  conceptId      String
+  stage          Int       @default(0)
+  lapses         Int       @default(0)
+  dueAt          DateTime
+  lastReviewedAt DateTime?
+  ladderVersion  String    @default("v1")
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, conceptId])
+  @@index([userId, dueAt])
+}
+
+model StudySession {
+  id        String              @id @default(cuid())
+  userId    String
+  unitId    String?
+  source    String              @default("MANUAL")
+  startedAt DateTime            @default(now())
+  report    StudySessionReport?
+
+  @@index([userId, startedAt])
+}
+
+model StudySessionReport {
+  id                 String         @id @default(cuid())
+  sessionId          String         @unique
+  session            StudySession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId             String
+  clientRequestId    String
+  unitId             String
+  status             CoverageStatus
+  topicsCoveredIds   String[]
+  weakTopicIds       String[]
+  questionsAttempted Int            @default(0)
+  questionsCorrect   Int            @default(0)
+  pyqAttempted       Int            @default(0)
+  pyqCorrect         Int            @default(0)
+  selfConfidence     Int?
+  continueUnit       Boolean        @default(false)
+  notes              String?
+  createdAt          DateTime       @default(now())
+
+  @@unique([userId, clientRequestId])
+  @@index([userId, unitId, createdAt])
+}
+
+/// Guards recordAnswers() against double-counting an Answer on retries.
+model AppliedOutcome {
+  answerId         String   @id
+  userId           String
+  algorithmVersion String
+  appliedAt        DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Raw event log (QUESTION_VIEWED, TOPIC_STUDIED, MISTAKE_CREATED, ...).
+/// Keep payloads small; prune old rows per the retention policy.
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  payload   Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([userId, type, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Part 4 additions — DPP Engine
+//
+// Append these models/enums to prisma/schema.prisma (the single schema
+// file used by every part — see PROJECT_PLAN.md). They assume the
+// following models already exist from Parts 1–3:
+//   User        (server/auth)
+//   Question    (server/domains/questions)
+//   Concept     (server/domains/syllabus)
+//
+// After merging, run:
+//   npx prisma migrate dev --name part4_dpp_engine
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Where a DPP question came from. Mirrors dpp.config.ts's DPPSource union —
+/// keep these in sync if either changes.
+enum DPPSourceType {
+  WEAK // low-mastery concept, not yet revision-due
+  PREREQUISITE // supports a weak downstream concept
+  REVISION // ReviewState says due today (or within the lookahead window)
+  MISTAKE // concept tied to a recent logged mistake
+  PYQ // previous-year question, mixed-source fill
+  MIXED // general practice / backfill when a bucket runs short
+}
+
+/// One calendar day's Daily Practice Problem set for one user.
+/// Generation is idempotent per (userId, date) — see dpp.service.ts.
+model DPP {
+  id               String   @id @default(cuid())
+  userId           String
+  date             DateTime @db.Date
+  algorithmVersion String // e.g. "v1" — see dpp.config.ts
+  targetCount      Int
+  generatedAt      DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions DPPQuestion[]
+
+  @@unique([userId, date], name: "userId_date")
+  @@index([userId, date])
+}
+
+/// A single question slotted into a DPP, tagged with the candidate source
+/// that selected it (so the "why is this here" UI and analytics can
+/// explain the set without re-deriving it).
+model DPPQuestion {
+  id         String        @id @default(cuid())
+  dppId      String
+  questionId String
+  source     DPPSourceType
+  position   Int // 1-based order within the DPP
+  conceptId  String? // the concept this slot targets, if applicable
+
+  completedAt DateTime?
+  correct     Boolean?
+
+  createdAt DateTime @default(now())
+
+  dpp      DPP      @relation(fields: [dppId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([dppId, questionId])
+  @@index([dppId, position])
+  @@index([questionId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Add the reverse relations to existing models, e.g.:
+//
+//   model User {
+//     // ...existing fields
+//     dpps DPP[]
+//   }
+//
+//   model Question {
+//     // ...existing fields
+//     dppQuestions DPPQuestion[]
+//   }
+// ─────────────────────────────────────────────────────────────────────────
