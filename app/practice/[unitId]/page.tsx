@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AppShell } from "@/components/shell/AppShell";
 import { Button } from "@/components/ui/Button";
 
 export default function PracticeLauncherPage({ params }: { params: { unitId: string } }) {
@@ -34,12 +35,15 @@ export default function PracticeLauncherPage({ params }: { params: { unitId: str
   }
 
   return (
-    <div className="max-w-md mx-auto p-6 md:p-10 flex flex-col gap-5">
-      <h1 className="text-xl font-semibold text-ink">Start a topic quiz</h1>
-      <p className="text-sm text-slate">
-        Pulls approved questions from the trusted question bank for this unit. Score is final and
-        deterministic — negative marking applies per the configured GATE marking scheme.
-      </p>
+    <AppShell active="practice" width="reading">
+    <div className="flex flex-col gap-5">
+      <div>
+        <h1 className="text-xl font-semibold text-ink">Start a topic quiz</h1>
+        <p className="mt-1 text-sm text-slate">
+          Pulls approved questions from the trusted question bank for this unit. Score is final and
+          deterministic — negative marking applies per the configured GATE marking scheme.
+        </p>
+      </div>
 
       <label className="text-sm text-ink-soft">
         Number of questions
@@ -59,5 +63,6 @@ export default function PracticeLauncherPage({ params }: { params: { unitId: str
         {loading ? "Starting…" : "Start quiz"}
       </Button>
     </div>
+    </AppShell>
   );
 }

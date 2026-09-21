@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PASTEL_CLASS, formatDay, pct } from "@/components/planner/format";
-import { PageShell, PhaseTrack, ProgressBar, ReasonRows, StatTile, cardClass } from "@/components/planner/ui";
+import { AppShell } from "@/components/shell/AppShell";
+import { PhaseTrack, ProgressBar, ReasonRows, StatTile, cardClass } from "@/components/planner/ui";
 import { requireUserId } from "@/server/auth/session";
 import type { PaceReport, WhyType } from "@/server/domains/analytics/pace.service";
 import { getProgressReports } from "@/server/domains/planner/planner.service";
@@ -35,7 +36,7 @@ export default async function ReportsPage() {
   const tone = pace.status === "ON_TRACK" ? "teal" : "amber";
 
   return (
-    <PageShell
+    <AppShell
       aside={
         <>
           <PhaseTrack phase={phase} />
@@ -137,6 +138,6 @@ export default async function ReportsPage() {
           Pace needs an exam date. <Link href="/planner" className="underline">Set it on the Today screen.</Link>
         </p>
       )}
-    </PageShell>
+    </AppShell>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AppShell } from "@/components/shell/AppShell";
 
 /**
  * app/tutor/page.tsx
@@ -114,7 +115,8 @@ export default function TutorPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 flex flex-col gap-5">
+    <AppShell active="today" width="reading">
+      <div className="flex flex-col gap-5">
       <div>
         <h1 className="text-xl font-semibold text-[#111111]">Tutor</h1>
         <p className="text-sm text-[#77736D] mt-1">
@@ -287,7 +289,8 @@ export default function TutorPage() {
           box-shadow: 0 0 0 2px #0e8074;
         }
       `}</style>
-    </div>
+      </div>
+    </AppShell>
   );
 }
 

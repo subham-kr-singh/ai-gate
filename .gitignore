@@ -5,3 +5,13 @@ node_modules
 *.log
 prisma/migrations/dev.db*
 coverage
+
+# local QA harnesses (Playwright smoke scripts, question-bank generators)
+qa-flows.js
+qa-snap.js
+genbank.mjs
+genq.mjs
+pgstart.mjs
+
+# TypeScript build cache
+tsconfig.tsbuildinfo

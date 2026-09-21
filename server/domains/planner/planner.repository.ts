@@ -27,9 +27,19 @@ export const DEFAULT_TIMEZONE = "Asia/Kolkata"; // GATE is held in India; editab
 export async function getOrCreatePlan(userId: string, now: Date) {
   const existing = await prisma.studyPlan.findUnique({ where: { userId } });
   if (existing) return existing;
-  return prisma.studyPlan.create({
-    data: { userId, prepStartDate: keyToDate(dayKey(now, DEFAULT_TIMEZONE)), timezone: DEFAULT_TIMEZONE },
-  });
+  try {
+    return await prisma.studyPlan.create({
+      data: { userId, prepStartDate: keyToDate(dayKey(now, DEFAULT_TIMEZONE)), timezone: DEFAULT_TIMEZONE },
+    });
+  } catch (e) {
+    // Two requests can race the find/create above. The unique index on
+    // userId makes the loser fail — read back the winner's row instead.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      const plan = await prisma.studyPlan.findUnique({ where: { userId } });
+      if (plan) return plan;
+    }
+    throw e;
+  }
 }
 
 export async function updatePlan(

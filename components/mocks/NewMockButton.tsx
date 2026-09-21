@@ -18,9 +18,22 @@ export function NewMockButton({ blueprintKey, disabled }: { blueprintKey: string
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ blueprintKey, preferUnseen }),
       });
-      const body = (await res.json().catch(() => null)) as { id?: string; error?: { message?: string } } | null;
+      const body = (await res.json().catch(() => null)) as {
+        id?: string;
+        error?: { message?: string; shortfalls?: { section: string; marks: number; needed: number; available: number }[] };
+      } | null;
       if (res.ok && body?.id) return router.push(`/mocks/${body.id}`);
-      setError(body?.error?.message ?? 'Could not build a paper.');
+      const short = body?.error?.shortfalls;
+      if (short?.length) {
+        // Raw counts alone read as a crash; name what is actually short.
+        const parts = short.map((s) => `${s.needed - s.available} more ${s.section} ${s.marks}-mark`);
+        setError(
+          `Not enough approved questions yet — the bank is short ${parts.join(', ')} to fill a full paper. ` +
+            `Practice more or import questions, then try again.`
+        );
+      } else {
+        setError(body?.error?.message ?? 'Could not build a paper.');
+      }
     } catch {
       setError('Network problem. Try again.');
     }

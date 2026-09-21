@@ -2,7 +2,8 @@ import Link from "next/link";
 import { OverrideControls } from "@/components/planner/OverrideControls";
 import { PlanSettingsForm } from "@/components/planner/PlanSettingsForm";
 import { ACTION_LABEL, PASTEL_CLASS, describeReason, formatDay, headline, pct, reasonTone, reasonValue } from "@/components/planner/format";
-import { PageShell, PhaseTrack, ProgressBar, ReasonRows, StatTile, SubjectBadge, cardClass, pillDark } from "@/components/planner/ui";
+import { AppShell } from "@/components/shell/AppShell";
+import { PhaseTrack, ProgressBar, ReasonRows, StatTile, SubjectBadge, cardClass, pillDark } from "@/components/planner/ui";
 import { requireUserId } from "@/server/auth/session";
 import { getPlanSettings, getToday } from "@/server/domains/planner/planner.service";
 
@@ -24,7 +25,7 @@ export default async function PlannerPage() {
   const reasonRows = (primary?.reasons ?? []).map((r) => ({ text: describeReason(r), value: reasonValue(r), tone: reasonTone([r]) }));
 
   return (
-    <PageShell
+    <AppShell
       aside={
         <>
           <div>
@@ -212,6 +213,6 @@ export default async function PlannerPage() {
           </div>
         </section>
       )}
-    </PageShell>
+    </AppShell>
   );
 }

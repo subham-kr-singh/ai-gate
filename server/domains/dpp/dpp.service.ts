@@ -1,5 +1,9 @@
-import type { PrismaClient, DPPSourceType } from "@prisma/client";
+import type { Prisma, PrismaClient, DPPSourceType } from "@prisma/client";
 import { db as defaultDb } from "@/server/db/client";
+import { GATE_EXAM_YEAR } from "@/lib/exam";
+import { getMarkingRule } from "@/server/domains/grading/marking-scheme";
+import { gradeAnswer } from "@/server/domains/grading/grading.service";
+import { recordAnswers } from "@/server/domains/mastery/mastery.service";
 import { DPP_CONFIG_V1, type DPPConfig, type DPPSource } from "./dpp.config";
 import { composeDPP } from "./dpp.compose";
 import type {
@@ -271,7 +275,7 @@ export async function generateTodaysDPP(
     include: { questions: { orderBy: { position: "asc" } } },
   });
 
-  if (existing) {
+  if (existing?.questions.length) {
     return {
       dppId: existing.id,
       date: toIsoDate(day),
@@ -287,6 +291,12 @@ export async function generateTodaysDPP(
       })),
     };
   }
+
+  // An empty DPP can only come from a day that started with no eligible
+  // questions. Caching it would show "nothing to practise" all day even after
+  // the student answers something or a question import lands, so it is dropped
+  // and rebuilt rather than returned.
+  if (existing) await db.dPP.delete({ where: { id: existing.id } });
 
   const pool = await fetchCandidatePool(db, userId, config);
   const composed = composeDPP(pool, config);
@@ -319,8 +329,131 @@ export async function generateTodaysDPP(
       conceptId: q.conceptId,
       source: q.source as DPPSource,
       position: q.position,
-      completedAt: null,
-      correct: null,
+      completedAt: q.completedAt ?? null,
+      correct: q.correct ?? null,
     })),
   };
 }
+
+/* --------------------------- answering a DPP ------------------------------ */
+
+export interface DPPAnswerResult {
+  questionId: string;
+  correct: boolean;
+  marks: number;
+  /** True when the question was already answered — the stored outcome is returned unchanged. */
+  alreadyAnswered: boolean;
+}
+
+/**
+ * Records one answer inside a DPP.
+ *
+ * Graded answers are stored as Test/Attempt/Answer rows because that is the
+ * shape mastery, mistakes and revision read. Each DPP gets one container Test
+ * (created on the first answer, immediately marked SUBMITTED so it never shows
+ * up as an unfinished quiz) holding one Attempt that collects the day's
+ * answers. Idempotent: a question already answered returns its stored outcome
+ * instead of double-counting evidence.
+ */
+export async function answerDPPQuestion(
+  params: { userId: string; dppId: string; questionId: string; selected: string | string[] | null },
+  db: PrismaClient = defaultDb
+): Promise<DPPAnswerResult> {
+  const { userId, dppId, questionId, selected } = params;
+
+  const slot = await db.dPPQuestion.findFirst({ where: { dppId, questionId, dpp: { userId } } });
+  if (!slot) throw new Error("That question is not part of this practice set.");
+  if (slot.completedAt) {
+    return { questionId, correct: slot.correct ?? false, marks: 0, alreadyAnswered: true };
+  }
+
+  const question = await db.question.findUnique({ where: { id: questionId } });
+  if (!question) throw new Error("Question not found.");
+
+  const rule = await getMarkingRule(GATE_EXAM_YEAR, question.type);
+  const graded = gradeAnswer(
+    {
+      type: question.type,
+      marks: question.marks,
+      correctAnswer: question.correctAnswer,
+      natTolerance: question.natTolerance as { min: number; max: number } | null,
+    },
+    selected,
+    rule
+  );
+
+  // The answer row and the DPP slot land together. Mastery evidence is applied
+  // after, keyed by answerId, so a retry cannot count the same answer twice.
+  const answerId = await db.$transaction(async (tx: Prisma.TransactionClient) => {
+    const attemptId = await ensureDppAttempt(tx, userId, dppId);
+    const answer = await tx.answer.create({
+      data: {
+        attemptId,
+        questionId,
+        userId,
+        seq: slot.position,
+        selectedAnswer: (selected ?? null) as never,
+        correct: graded.correct,
+        marks: graded.marks,
+      },
+    });
+
+    await tx.dPPQuestion.update({
+      where: { id: slot.id },
+      data: { completedAt: new Date(), correct: graded.correct },
+    });
+
+    return answer.id;
+  });
+
+  await recordAnswers(
+    userId,
+    [
+      {
+        answerId,
+        questionId,
+        conceptIds: slot.conceptId ? [slot.conceptId] : undefined,
+        unitId: question.unitId,
+        correct: graded.correct,
+        isPyq: Boolean(question.year && question.year < GATE_EXAM_YEAR),
+        answeredAt: new Date(),
+      },
+    ],
+    undefined,
+    new Date()
+  );
+
+  return { questionId, correct: graded.correct, marks: graded.marks, alreadyAnswered: false };
+}
+
+/** Finds or creates the single container Test + Attempt that collects a DPP's
+ * answers. The Test is marked SUBMITTED with zero marks up front: it is a
+ * grouping key for evidence, not a quiz the student "finished". */
+async function ensureDppAttempt(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  dppId: string
+): Promise<string> {
+  const title = `Daily practice ${dppId}`;
+  const existing = await tx.test.findFirst({
+    where: { userId, title },
+    include: { attempts: { take: 1 } },
+  });
+  if (existing?.attempts[0]) return existing.attempts[0].id;
+
+  const test = await tx.test.create({
+    data: {
+      userId,
+      type: "TOPIC_QUIZ",
+      examYear: GATE_EXAM_YEAR,
+      title,
+      status: "SUBMITTED",
+      submittedAt: new Date(),
+    },
+  });
+  const attempt = await tx.attempt.create({
+    data: { userId, testId: test.id, totalMarks: 0, scoredMarks: 0, accuracy: 0 },
+  });
+  return attempt.id;
+}
+

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { QuestionCard, type QuestionCardData } from "@/components/test/QuestionCard";
 import { Palette, type PaletteStatus } from "@/components/test/Palette";
@@ -122,70 +123,76 @@ export default function TestPage({ params }: { params: { testId: string } }) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 md:p-10 flex flex-col md:flex-row gap-8">
-      <div className="flex-1 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-[#F8F6F2]">
+      <header className="flex items-center justify-between border-b border-[#E3E0DA] px-5 py-3 md:px-10">
+        <Link href="/tests" className="text-sm text-[#77736D] underline-offset-2 hover:underline">
+          ← Test history
+        </Link>
+        <Timer deadlineAt={test.deadlineAt} onExpire={handleSubmit} />
+      </header>
+
+      <div className="mx-auto flex max-w-4xl flex-col gap-8 p-5 md:flex-row md:p-10">
+        <div className="flex flex-1 flex-col gap-4">
           <h1 className="text-lg font-semibold text-ink">{test.title}</h1>
-          <Timer deadlineAt={test.deadlineAt} onExpire={handleSubmit} />
+
+          {current && (
+            <QuestionCard
+              question={current.question}
+              index={index}
+              total={test.testQuestions.length}
+              selected={answers[current.questionId] ?? null}
+              onChange={handleChange}
+              onToggleMark={handleToggleMark}
+              marked={!!marked[current.questionId]}
+            />
+          )}
+
+          <div className="flex items-center justify-between">
+            <Button
+              variant="secondary"
+              disabled={index === 0}
+              onClick={() => setIndex((i) => Math.max(0, i - 1))}
+            >
+              Previous
+            </Button>
+            {index < test.testQuestions.length - 1 ? (
+              <Button onClick={() => setIndex((i) => Math.min(test.testQuestions.length - 1, i + 1))}>
+                Next
+              </Button>
+            ) : (
+              <Button onClick={() => setShowConfirm(true)}>Submit test</Button>
+            )}
+          </div>
         </div>
 
-        {current && (
-          <QuestionCard
-            question={current.question}
-            index={index}
-            total={test.testQuestions.length}
-            selected={answers[current.questionId] ?? null}
-            onChange={handleChange}
-            onToggleMark={handleToggleMark}
-            marked={!!marked[current.questionId]}
+        <div className="flex w-full flex-col gap-3 md:w-56">
+          <p className="text-sm font-semibold text-ink">Question palette</p>
+          <Palette
+            questions={test.testQuestions.map((tq) => ({ id: tq.questionId }))}
+            currentIndex={index}
+            statuses={statuses}
+            onSelect={setIndex}
+          />
+          <Button variant="secondary" onClick={() => setShowConfirm(true)}>
+            Submit test
+          </Button>
+        </div>
+
+        {showConfirm && (
+          <SubmitConfirm
+            answeredCount={answeredCount}
+            totalCount={test.testQuestions.length}
+            onCancel={() => setShowConfirm(false)}
+            onConfirm={handleSubmit}
           />
         )}
 
-        <div className="flex items-center justify-between">
-          <Button
-            variant="secondary"
-            disabled={index === 0}
-            onClick={() => setIndex((i) => Math.max(0, i - 1))}
-          >
-            Previous
-          </Button>
-          {index < test.testQuestions.length - 1 ? (
-            <Button onClick={() => setIndex((i) => Math.min(test.testQuestions.length - 1, i + 1))}>
-              Next
-            </Button>
-          ) : (
-            <Button onClick={() => setShowConfirm(true)}>Submit test</Button>
-          )}
-        </div>
+        {submitting && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black/20 text-sm text-ink">
+            Grading…
+          </div>
+        )}
       </div>
-
-      <div className="w-full md:w-56 flex flex-col gap-3">
-        <p className="text-sm font-semibold text-ink">Question palette</p>
-        <Palette
-          questions={test.testQuestions.map((tq) => ({ id: tq.questionId }))}
-          currentIndex={index}
-          statuses={statuses}
-          onSelect={setIndex}
-        />
-        <Button variant="secondary" onClick={() => setShowConfirm(true)}>
-          Submit test
-        </Button>
-      </div>
-
-      {showConfirm && (
-        <SubmitConfirm
-          answeredCount={answeredCount}
-          totalCount={test.testQuestions.length}
-          onCancel={() => setShowConfirm(false)}
-          onConfirm={handleSubmit}
-        />
-      )}
-
-      {submitting && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center text-sm text-ink">
-          Grading…
-        </div>
-      )}
     </div>
   );
 }

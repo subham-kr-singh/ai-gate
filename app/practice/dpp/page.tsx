@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppShell } from "@/components/shell/AppShell";
 import { getCurrentUser } from "@/server/auth/session"; // Part 1
 import { generateTodaysDPP } from "@/server/domains/dpp/dpp.service";
 import { DPP_CONFIG_V1, type DPPSource } from "@/server/domains/dpp/dpp.config";
@@ -47,7 +48,12 @@ export default async function DppPage() {
   const nextUp = dpp.questions.find((q) => !q.completedAt);
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-7 px-4 py-8 md:py-10">
+    <AppShell
+      active="practice"
+      initial={(session.name ?? session.email)[0]?.toUpperCase()}
+      width="reading"
+    >
+      <div className="flex flex-col gap-7">
       {/* Header — matches the dashboard's greeting/meta pairing */}
       <div className="flex items-center justify-between">
         <div>
@@ -128,6 +134,7 @@ export default async function DppPage() {
           </div>
         </>
       )}
-    </main>
+      </div>
+    </AppShell>
   );
 }

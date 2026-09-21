@@ -1,45 +1,52 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AppShell } from "@/components/shell/AppShell";
 import { requireUser } from "@/server/auth/require";
 import { getSubjectDetail } from "@/server/domains/syllabus/syllabus.service";
 
-export default async function SubjectPage({ params }: { params: { subjectId: string } }) {
-  await requireUser();
-  const subject = await getSubjectDetail(params.subjectId);
+export const dynamic = "force-dynamic";
+
+export default async function SubjectPage({ params }: { params: Promise<{ subjectId: string }> }) {
+  const user = await requireUser();
+  const { subjectId } = await params;
+  const subject = await getSubjectDetail(subjectId);
   if (!subject) notFound();
 
   return (
-    <div className="max-w-3xl mx-auto p-6 md:p-10 flex flex-col gap-6">
-      <div>
-        <Link href="/syllabus" className="text-sm text-slate hover:text-ink">
+    <AppShell active="syllabus" initial={(user.name ?? user.email)[0]?.toUpperCase()} width="reading">
+      <header>
+        <Link
+          href="/syllabus"
+          className="text-sm text-[#77736D] underline-offset-2 hover:underline"
+        >
           ← Syllabus
         </Link>
-        <h1 className="text-xl font-semibold text-ink mt-2">{subject.name}</h1>
-        <p className="text-sm text-slate">{subject.units.length} units</p>
-      </div>
+        <h1 className="mt-2 text-xl font-semibold text-[#111111]">{subject.name}</h1>
+        <p className="text-sm text-[#77736D]">{subject.units.length} units</p>
+      </header>
 
       <div className="flex flex-col gap-4">
         {subject.units.map((unit) => (
-          <div key={unit.id} className="rounded-card border border-line bg-white p-5">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-ink">{unit.name}</p>
+          <section key={unit.id} className="rounded-[20px] border border-[#E3E0DA] bg-white p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-[#111111]">{unit.name}</h2>
               <Link
-                href={`/practice/${unit.id}` as any}
-                className="text-xs text-ink underline hover:no-underline"
+                href={`/practice/${unit.id}`}
+                className="text-xs text-[#111111] underline underline-offset-2 hover:no-underline"
               >
                 Start topic quiz →
               </Link>
             </div>
-            <ul className="mt-3 flex flex-col gap-1">
+            <ul className="m-0 mt-3 flex list-none flex-col gap-1 p-0">
               {unit.topics.flatMap((t) => t.concepts).map((c) => (
-                <li key={c.id} className="text-xs text-slate">
+                <li key={c.id} className="text-xs text-[#77736D]">
                   {c.name}
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
         ))}
       </div>
-    </div>
+    </AppShell>
   );
 }
