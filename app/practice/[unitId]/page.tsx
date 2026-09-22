@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/shell/AppShell";
 import { Button } from "@/components/ui/Button";
+import { GATE_EXAM_YEAR } from "@/lib/exam";
 
 export default function PracticeLauncherPage({ params }: { params: { unitId: string } }) {
   const router = useRouter();
@@ -19,7 +20,7 @@ export default function PracticeLauncherPage({ params }: { params: { unitId: str
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         type: "TOPIC_QUIZ",
-        examYear: new Date().getFullYear() + 1,
+        examYear: GATE_EXAM_YEAR,
         title: "Topic quiz",
         filter: { unitId: params.unitId, count },
       }),
