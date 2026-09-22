@@ -109,7 +109,7 @@ export default function TestPage({ params }: { params: { testId: string } }) {
     const res = await fetch(`/api/tests/${params.testId}/submit`, { method: "POST" });
     setSubmitting(false);
     if (res.ok) {
-      router.push(`/tests/${params.testId}/result` as any);
+      router.push(`/tests/${params.testId}/result`);
     }
   }
 
@@ -118,7 +118,7 @@ export default function TestPage({ params }: { params: { testId: string } }) {
   }
 
   if (test.status === "SUBMITTED") {
-    router.replace(("/tests/" + params.testId + "/result") as any);
+    router.replace(`/tests/${params.testId}/result`);
     return null;
   }
 

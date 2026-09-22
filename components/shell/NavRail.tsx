@@ -14,8 +14,8 @@ export function NavRail({ active = "today", initial = "G" }: { active?: NavKey; 
     <aside className="hidden flex-col items-center justify-between border-r border-[#E3E0DA] py-6 lg:flex">
       <div className="flex flex-col items-center">
         <Link
-          href="/planner"
-          aria-label="GATE AI — Today"
+          href="/dashboard"
+          aria-label="GATE AI — Dashboard"
           className="mb-5 flex h-9 w-9 items-center justify-center rounded-full bg-[#111111] text-sm font-semibold text-white"
         >
           G

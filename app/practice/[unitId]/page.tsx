@@ -31,7 +31,7 @@ export default function PracticeLauncherPage({ params }: { params: { unitId: str
       return;
     }
     const { test } = await res.json();
-    router.push(`/tests/${test.id}` as any);
+    router.push(`/tests/${test.id}`);
   }
 
   return (

@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { focusRing, pillDark, pillSoft } from "./ui";
+import { useDelayedRefresh } from "@/lib/use-delayed-refresh";
 
 interface UnitOption {
   unitId: string;
@@ -23,7 +23,7 @@ export function OverrideControls({
   recommendedUnitName: string | null;
   units: UnitOption[];
 }) {
-  const router = useRouter();
+  const refreshSoon = useDelayedRefresh();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
@@ -47,7 +47,7 @@ export function OverrideControls({
       }
       setMessage({ tone: "ok", text: (data.effects as string[])?.join(" ") || "Saved." });
       setOpen(false);
-      router.refresh();
+      refreshSoon();
     } catch {
       setMessage({ tone: "error", text: "You appear to be offline. Try again when you are back online." });
     } finally {

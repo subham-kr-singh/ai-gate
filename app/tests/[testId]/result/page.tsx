@@ -22,7 +22,7 @@ export default async function ResultPage({ params }: { params: { testId: string 
     <AppShell active="tests">
     <div className="flex flex-col gap-6">
       <div>
-        <Link href={"/tests" as any} className="text-sm text-slate hover:text-ink">
+        <Link href="/tests" className="text-sm text-slate hover:text-ink">
           ← Test history
         </Link>
         <h1 className="text-xl font-semibold text-ink mt-2">{test.title}</h1>

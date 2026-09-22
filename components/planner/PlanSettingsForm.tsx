@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { focusRing, pillDark } from "./ui";
+import { useDelayedRefresh } from "@/lib/use-delayed-refresh";
 
 export interface PlanSettings {
   examDate: string | null;
@@ -15,7 +15,7 @@ export interface PlanSettings {
 const field = `h-10 w-full rounded-full bg-[#ECE9E3] px-4 text-sm outline-none ${focusRing}`;
 
 export function PlanSettingsForm({ initial }: { initial: PlanSettings }) {
-  const router = useRouter();
+  const refreshSoon = useDelayedRefresh();
   const [s, setS] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
@@ -42,7 +42,7 @@ export function PlanSettingsForm({ initial }: { initial: PlanSettings }) {
         return;
       }
       setMsg({ tone: "ok", text: "Plan saved." });
-      router.refresh();
+      refreshSoon();
     } catch {
       setMsg({ tone: "error", text: "You appear to be offline. Try again when you are back online." });
     } finally {
