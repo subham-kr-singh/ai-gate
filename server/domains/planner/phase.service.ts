@@ -37,15 +37,40 @@ export function phaseWindows(
     starts = [prepStartKey, ...explicit];
   } else {
     const f = PLANNER_CONFIG.phaseFractions;
-    let o2 = Math.round(span * f[0]);
-    let o3 = Math.round(span * (f[0] + f[1]));
-    let o4 = Math.round(span * (f[0] + f[1] + f[2]));
-    o4 = Math.min(o4, span - PLANNER_CONFIG.phase.minFinalDays);
-    // Strictly increasing, and never past the exam date, even for very short runways.
-    o2 = Math.max(1, Math.min(o2, span - 3));
-    o3 = Math.max(o2 + 1, Math.min(o3, span - 2));
-    o4 = Math.max(o3 + 1, Math.min(o4, span - 1));
-    starts = [prepStartKey, addDays(prepStartKey, o2), addDays(prepStartKey, o3), addDays(prepStartKey, o4)];
+    // Last offset must land strictly before the exam date; on a one-day
+    // runway that ceiling is 1, never 0 or negative.
+    const ceiling = Math.max(1, span - 1);
+    const clamp = (v: number) => Math.max(1, Math.min(v, ceiling));
+    const offsets: [number, number, number] = [
+      clamp(Math.round(span * f[0])),
+      clamp(Math.round(span * (f[0] + f[1]))),
+      clamp(Math.round(span * (f[0] + f[1] + f[2]))),
+    ].sort((a, b) => a - b) as [number, number, number];
+
+    // Cap the final phase at minFinalDays *before* enforcing order, then pull
+    // each earlier offset down to stay non-decreasing. Doing it the other way
+    // round lets the cap invert offsets[1]/offsets[2] on a 3-day runway, which
+    // renders a window that ends before it starts.
+    offsets[2] = Math.min(offsets[2], Math.max(1, span - PLANNER_CONFIG.phase.minFinalDays));
+    offsets[1] = Math.min(offsets[1], offsets[2]);
+    offsets[0] = Math.min(offsets[0], offsets[1]);
+
+    // With four phases and at least three usable days the boundaries can be
+    // strictly increasing; below that they collapse into zero-length windows
+    // rather than being pushed past the exam. Either way: non-decreasing, and
+    // every offset < span so no phase starts on or after the exam date.
+    if (ceiling >= 3) {
+      offsets[0] = clamp(Math.min(offsets[0], ceiling - 2));
+      offsets[1] = Math.min(Math.max(offsets[1], offsets[0] + 1), ceiling - 1);
+      offsets[2] = Math.min(Math.max(offsets[2], offsets[1] + 1), ceiling);
+    }
+
+    starts = [
+      prepStartKey,
+      addDays(prepStartKey, offsets[0]),
+      addDays(prepStartKey, offsets[1]),
+      addDays(prepStartKey, offsets[2]),
+    ];
   }
 
   return starts.map((startKey, i) => ({

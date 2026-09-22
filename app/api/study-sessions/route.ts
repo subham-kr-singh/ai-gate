@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/server/auth/session";
 import { detectStudySessions } from "@/server/domains/mastery/session-detect.service";
+import { DEFAULT_TIMEZONE } from "@/server/domains/planner/planner.repository";
+import { db } from "@/server/db/client";
 
 /**
  * GET /api/study-sessions
@@ -18,6 +20,11 @@ export async function GET(req: NextRequest) {
   const parsed = raw ? Number(raw) : 14;
   const days = Number.isFinite(parsed) ? Math.min(Math.max(Math.trunc(parsed), 1), 90) : 14;
 
-  const sessions = await detectStudySessions(user.id, { days });
+  // Day boundaries must follow the student's zone, exactly as the planner
+  // does, or a session that crosses local midnight would be split in two.
+  // Read (never create) the plan: a GET must not have write side effects.
+  const plan = await db.studyPlan.findUnique({ where: { userId: user.id }, select: { timezone: true } });
+
+  const sessions = await detectStudySessions(user.id, { days, timezone: plan?.timezone ?? DEFAULT_TIMEZONE });
   return NextResponse.json({ sessions });
 }

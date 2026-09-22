@@ -85,6 +85,32 @@ export function PhaseTrack({ phase }: { phase: PhaseInfo }) {
   );
 }
 
+/**
+ * Exam-week strip (DESIGN.md §5): a 7-day row with today as a solid ink
+ * circle. Server-rendered from the plan's own day keys so it can never
+ * disagree with "N days to exam" above it.
+ */
+export function WeekStrip({ days }: { days: { key: string; weekday: string; dayOfMonth: string; isToday: boolean }[] }) {
+  if (!days.length) return null;
+  return (
+    <ol className="mt-3 flex items-center justify-between" aria-label="This week">
+      {days.map((d) => (
+        <li key={d.key} className="flex flex-col items-center gap-1">
+          <span className="text-xs text-[#77736D]">{d.weekday}</span>
+          <span
+            className={`flex h-7 w-7 items-center justify-center rounded-full text-xs tabular-nums ${
+              d.isToday ? "bg-[#111111] text-white" : "text-[#111111]"
+            }`}
+            aria-current={d.isToday ? "date" : undefined}
+          >
+            {d.dayOfMonth}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export function ReasonRows({ rows }: { rows: { text: string; value: string; tone: "amber" | "teal" }[] }) {
   return (
     <ul className="flex flex-col divide-y divide-[#E3E0DA]">

@@ -14,6 +14,28 @@ export function formatDayShort(key: string): string {
   return new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(`${key}T00:00:00Z`));
 }
 
+const WEEKDAY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
+/**
+ * The seven day keys of the week containing `todayKey` (Mon-first). Built off
+ * the plan's own day key so the strip, "days to exam" and the phase bar all
+ * agree on what "today" is, even when the student's timezone differs from the
+ * server's.
+ */
+export function weekDays(todayKey: string): { key: string; weekday: string; dayOfMonth: string; isToday: boolean }[] {
+  const today = new Date(`${todayKey}T00:00:00Z`);
+  // getUTCDay: 0 = Sunday. Shift so Monday is the first column.
+  const mondayOffset = (today.getUTCDay() + 6) % 7;
+  const monday = new Date(today);
+  monday.setUTCDate(today.getUTCDate() - mondayOffset);
+  return WEEKDAY.map((weekday, i) => {
+    const d = new Date(monday);
+    d.setUTCDate(monday.getUTCDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    return { key, weekday, dayOfMonth: String(d.getUTCDate()), isToday: key === todayKey };
+  });
+}
+
 /** One plain sentence saying what to do. */
 export function headline(c: Candidate): string {
   const focus = c.conceptName ?? c.unitName ?? "";

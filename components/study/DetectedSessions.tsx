@@ -29,12 +29,19 @@ export interface DetectedSession {
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
+function localDayKey(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 function dayLabel(day: string): string {
   const d = new Date(`${day}T00:00:00Z`);
-  const today = new Date();
-  const diff = Math.round(
-    (Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()) - d.getTime()) / 86_400_000,
-  );
+  // `day` is the student's calendar day (the API groups by plan timezone), so
+  // compare against their local day too — a UTC comparison would call this
+  // morning's session "Yesterday" for the first hours of the IST day.
+  const todayKey = localDayKey(new Date());
+  const today = new Date(`${todayKey}T00:00:00Z`);
+  const diff = Math.round((today.getTime() - d.getTime()) / 86_400_000);
   if (diff === 0) return "Today";
   if (diff === 1) return "Yesterday";
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
@@ -175,13 +182,13 @@ function SessionCard({ session }: { session: DetectedSession }) {
 
         {confidence === "high" && (
           <p className="mt-3 text-sm text-[#0E8074]">
-            Noted. This session is already counted — nothing else needed.
+            Good. This session is already counted — nothing else to do here.
           </p>
         )}
         {confidence === "medium" && (
           <p className="mt-3 text-sm text-[#3a3a3a]">
-            Noted. Your plan stays as it is; the tutor can tighten revision if
-            the next session looks the same.
+            Okay. Your plan stays as it is; if the next session looks the same,
+            revision intensity is worth revisiting with the tutor.
           </p>
         )}
         {confidence === "low" && (

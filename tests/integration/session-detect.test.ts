@@ -123,4 +123,44 @@ describe.skipIf(!shouldRun)("auto-detected study sessions", () => {
     expect(sessions[0]!.weakConcepts[0]?.correct).toBe(1);
     expect(sessions[0]!.weakConcepts[0]?.attempted).toBe(2);
   });
+
+  it("groups by the student's zone, so one late-night IST session stays whole", async () => {
+    // Two answers 20 minutes apart that straddle UTC midnight but sit on the
+    // same Asia/Kolkata day (IST is UTC+5:30). Grouping on UTC would split
+    // them into two sessions; the planner's zone keeps them as one.
+    const quiz = await startTest({
+      userId,
+      type: "TOPIC_QUIZ",
+      examYear: 2099,
+      title: "Late night quiz",
+      questionIds: [questionId],
+    });
+    await autosaveAnswer(quiz.id, userId, { questionId, seq: 0, selectedAnswer: "b" });
+    await submitTest(quiz.id, userId);
+
+    // 2026-03-10T23:50Z = 2026-03-11 05:20 IST
+    await db.attempt.updateMany({ where: { testId: quiz.id }, data: { submittedAt: new Date("2026-03-10T23:50:00Z") } });
+    const quiz2 = await startTest({
+      userId,
+      type: "TOPIC_QUIZ",
+      examYear: 2099,
+      title: "Late night quiz 2",
+      questionIds: [questionId],
+    });
+    await autosaveAnswer(quiz2.id, userId, { questionId, seq: 0, selectedAnswer: "b" });
+    await submitTest(quiz2.id, userId);
+    // 2026-03-11T00:10Z = 2026-03-11 05:40 IST — same IST day, next UTC day
+    await db.attempt.updateMany({ where: { testId: quiz2.id }, data: { submittedAt: new Date("2026-03-11T00:10:00Z") } });
+
+    const now = new Date("2026-03-11T06:00:00Z");
+    const ist = await detectStudySessions(userId, { days: 30, now, timezone: "Asia/Kolkata" });
+    const utc = await detectStudySessions(userId, { days: 30, now, timezone: "UTC" });
+
+    // IST keeps both straddling answers on one day (2026-03-11); UTC splits
+    // them across 2026-03-10 and 2026-03-11.
+    const istDay = ist.find((s) => s.day === "2026-03-11");
+    expect(istDay?.questionsAttempted).toBe(2);
+    expect(utc.some((s) => s.day === "2026-03-10")).toBe(true);
+    expect(utc.find((s) => s.day === "2026-03-11")?.questionsAttempted).toBe(1);
+  });
 });
