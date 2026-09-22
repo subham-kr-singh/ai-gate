@@ -12,6 +12,7 @@
  * or the same answers would be counted twice.
  */
 import { db as prisma } from "@/server/db/client";
+import { GATE_EXAM_YEAR } from "@/lib/exam";
 import type { Db } from "../shared/db";
 
 export interface DetectedConcept {
@@ -46,12 +47,26 @@ export interface DetectOptions {
   days?: number;
   /** Injectable clock for tests. */
   now?: Date;
+  /** IANA zone the student studies in. Sessions group by their calendar day,
+   * not the server's UTC day, so a late-night IST session does not split in
+   * two at 05:30 local. Defaults to UTC for callers that have no plan. */
+  timezone?: string;
 }
 
 const DAY_MS = 86_400_000;
 
+/** A question written in an earlier GATE year is previous-year material. Same
+ * rule dpp.service and test.service apply, so the PYQ badge here can never
+ * disagree with the PYQ counters in the planner. */
+const isPyqQuestion = (year: number | null | undefined): boolean => Boolean(year && year < GATE_EXAM_YEAR);
+
 function utcDay(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+/** en-CA renders as YYYY-MM-DD, so this is directly a day key. */
+function zonedDay(d: Date, tz: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 }
 
 interface RawAnswer {
@@ -119,7 +134,7 @@ async function collectAnswers(userId: string, since: Date, db: Db): Promise<RawA
         conceptIds: q?.concepts.map((c) => c.conceptId) ?? [],
         unitId: q?.unitId ?? null,
         source,
-        isPyq: Boolean(q?.year),
+        isPyq: isPyqQuestion(q?.year),
       });
     }
   }
@@ -133,7 +148,7 @@ async function collectAnswers(userId: string, since: Date, db: Db): Promise<RawA
       conceptIds: dq.conceptId ? [dq.conceptId] : (q?.concepts.map((c) => c.conceptId) ?? []),
       unitId: q?.unitId ?? null,
       source: "dpp",
-      isPyq: Boolean(q?.year),
+      isPyq: isPyqQuestion(q?.year),
     });
   }
 
@@ -147,6 +162,10 @@ export async function detectStudySessions(
 ): Promise<DetectedSession[]> {
   const days = opts.days ?? 14;
   const now = opts.now ?? new Date();
+  // Group on the student's calendar day, matching the planner, so a session
+  // that runs past local midnight stays one session.
+  const tz = opts.timezone ?? "UTC";
+  const dayOf = (d: Date) => (tz === "UTC" ? utcDay(d) : zonedDay(d, tz));
   const since = new Date(now.getTime() - days * DAY_MS);
 
   const raw = await collectAnswers(userId, since, db);
@@ -168,7 +187,7 @@ export async function detectStudySessions(
   for (const a of raw) {
     const unitId = a.unitId ?? a.conceptIds.map((c) => conceptUnit.get(c)).find(Boolean) ?? null;
     if (!unitId) continue;
-    const key = `${unitId}|${utcDay(a.answeredAt)}`;
+    const key = `${unitId}|${dayOf(a.answeredAt)}`;
     const bucket = groups.get(key);
     if (bucket) bucket.push(a);
     else groups.set(key, [a]);
