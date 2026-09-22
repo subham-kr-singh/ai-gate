@@ -421,7 +421,7 @@ model ConceptStats {
   mistakes         Int       @default(0)
   averageTimeMs    Float?
   lastSeen         DateTime?
-    nextReviewAt     DateTime?
+  nextReviewAt     DateTime?
   pyqAttempts      Int       @default(0)
   pyqCorrect       Int       @default(0)
   algorithmVersion String    @default("v1")
@@ -446,7 +446,7 @@ model TopicStats {
   mistakes         Int       @default(0)
   averageTimeMs    Float?
   lastSeen         DateTime?
-    nextReviewAt     DateTime?
+  nextReviewAt     DateTime?
   pyqAttempts      Int       @default(0)
   pyqCorrect       Int       @default(0)
   algorithmVersion String    @default("v1")
@@ -780,9 +780,9 @@ model PlannerDecision {
 
 /// Explicit student decisions that differ from, or respond to, a recommendation.
 model UserOverride {
-  id                 String          @id @default(cuid())
+  id                 String           @id @default(cuid())
   userId             String
-  forDate            DateTime        @db.Date
+  forDate            DateTime         @db.Date
   decisionId         String?
   decision           PlannerDecision? @relation(fields: [decisionId], references: [id], onDelete: SetNull)
   choice             OverrideChoice
@@ -793,7 +793,7 @@ model UserOverride {
   snoozedUntil       DateTime?
   /// Weak concepts that stay owed for revision after the student moved on.
   unresolvedSnapshot Json?
-  createdAt          DateTime        @default(now())
+  createdAt          DateTime         @default(now())
 
   @@index([userId, forDate])
 }
@@ -858,6 +858,7 @@ model PlanSnapshot {
   @@unique([userId, kind, capturedOn])
   @@index([userId, kind, capturedOn])
 }
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Part 6 — Mock Simulator: schema additions
 //
@@ -880,15 +881,15 @@ model PlanSnapshot {
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum MockStatus {
-  READY        // paper assembled, clock NOT started
-  IN_PROGRESS  // clock running on the server
-  SUBMITTED    // graded, result stored
+  READY // paper assembled, clock NOT started
+  IN_PROGRESS // clock running on the server
+  SUBMITTED // graded, result stored
 }
 
 enum MockSubmitReason {
-  USER            // student pressed Submit
-  TIMER           // client saw deadlineAt pass and submitted
-  EXPIRED_SERVER  // nobody came back; server finalised after the late-sync window
+  USER // student pressed Submit
+  TIMER // client saw deadlineAt pass and submitted
+  EXPIRED_SERVER // nobody came back; server finalised after the late-sync window
 }
 
 enum MockEventKind {
@@ -898,52 +899,52 @@ enum MockEventKind {
   UNMARK
   GUESS
   UNGUESS
-  VISIT  // question opened
-  LEAVE  // student navigated away from a question (captures the first answer)
-  TIME   // time banked without leaving (tab hidden)
+  VISIT // question opened
+  LEAVE // student navigated away from a question (captures the first answer)
+  TIME // time banked without leaving (tab hidden)
 }
 
 model MockTest {
-  id                String            @id @default(cuid())
+  id                String     @id @default(cuid())
   userId            String
   title             String
-  blueprintKey      String            // e.g. "gate-2027-cs"
+  blueprintKey      String // e.g. "gate-2027-cs"
   examYear          Int
-  syllabusVersionId String?           // syllabus version active when the paper was built
-  status            MockStatus        @default(READY)
+  syllabusVersionId String? // syllabus version active when the paper was built
+  status            MockStatus @default(READY)
 
   // ── clock (server-authoritative) ──
-  durationSec       Int
-  startedAt         DateTime?
-  deadlineAt        DateTime?         // startedAt + durationSec. remaining = deadlineAt - now.
-  submittedAt       DateTime?
-  submitReason      MockSubmitReason?
+  durationSec  Int
+  startedAt    DateTime?
+  deadlineAt   DateTime? // startedAt + durationSec. remaining = deadlineAt - now.
+  submittedAt  DateTime?
+  submitReason MockSubmitReason?
 
   // ── autosave ──
-  lastSeq           Int               @default(0)   // highest accepted event seq
+  lastSeq Int @default(0) // highest accepted event seq
 
   // ── assembly provenance (algorithms are versioned, architecture §75) ──
-  assemblySeed      String
-  assemblyVersion   String
-  questionCount     Int
-  maxMarks          Float
-  freshCount        Int               @default(0)   // questions the student had never seen
+  assemblySeed    String
+  assemblyVersion String
+  questionCount   Int
+  maxMarks        Float
+  freshCount      Int    @default(0) // questions the student had never seen
 
   // ── result ──
-  score             Float?
-  resultJson        Json?             // MockAnalytics snapshot (immutable once written)
-  analyticsVersion  String?
+  score            Float?
+  resultJson       Json? // MockAnalytics snapshot (immutable once written)
+  analyticsVersion String?
 
   // ── learning-state hand-off: idempotent + retryable ──
   learningClaimedAt DateTime?
   learningAppliedAt DateTime?
 
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  items             MockPaperItem[]
-  states            MockAnswerState[]
-  events            MockAnswerEvent[]
+  items  MockPaperItem[]
+  states MockAnswerState[]
+  events MockAnswerEvent[]
 
   @@index([userId, status])
   @@index([userId, createdAt])
@@ -953,14 +954,14 @@ model MockTest {
 
 model MockPaperItem {
   mockId        String
-  position      Int       // 1-based order in the paper (GA first, then CS)
+  position      Int // 1-based order in the paper (GA first, then CS)
   questionId    String
-  section       String    // "GA" | "CORE"
-  marks         Int       // 1 | 2
-  type          String    // "MCQ" | "MSQ" | "NAT"
-  wasSeenBefore Boolean   @default(false)
+  section       String // "GA" | "CORE"
+  marks         Int // 1 | 2
+  type          String // "MCQ" | "MSQ" | "NAT"
+  wasSeenBefore Boolean @default(false)
 
-  mock          MockTest  @relation(fields: [mockId], references: [id], onDelete: Cascade)
+  mock MockTest @relation(fields: [mockId], references: [id], onDelete: Cascade)
 
   @@id([mockId, position])
   @@unique([mockId, questionId])
@@ -969,16 +970,16 @@ model MockPaperItem {
 model MockAnswerState {
   mockId          String
   questionId      String
-  selected        Json?     // MCQ: "B" · MSQ: ["A","C"] · NAT: "12.5" · null = unanswered
-  firstAnswer     Json?     // answer committed the first time the student left the question
-  markedForReview Boolean   @default(false)
-  guessed         Boolean   @default(false)
-  visitCount      Int       @default(0)
-  spentMs         Int       @default(0)
-  lastSeq         Int       @default(0)   // seq guard: an older event never overwrites a newer one
-  updatedAt       DateTime  @updatedAt
+  selected        Json? // MCQ: "B" · MSQ: ["A","C"] · NAT: "12.5" · null = unanswered
+  firstAnswer     Json? // answer committed the first time the student left the question
+  markedForReview Boolean  @default(false)
+  guessed         Boolean  @default(false)
+  visitCount      Int      @default(0)
+  spentMs         Int      @default(0)
+  lastSeq         Int      @default(0) // seq guard: an older event never overwrites a newer one
+  updatedAt       DateTime @updatedAt
 
-  mock            MockTest  @relation(fields: [mockId], references: [id], onDelete: Cascade)
+  mock MockTest @relation(fields: [mockId], references: [id], onDelete: Cascade)
 
   @@id([mockId, questionId])
 }
@@ -989,16 +990,17 @@ model MockAnswerEvent {
   questionId String
   kind       MockEventKind
   selected   Json?
-  spentMs    Int       @default(0)
-  clientAt   DateTime  // client's estimate of SERVER time when it happened
-  receivedAt DateTime  @default(now())
-  applied    Boolean   @default(true)   // false = logged but superseded by a newer seq
+  spentMs    Int           @default(0)
+  clientAt   DateTime // client's estimate of SERVER time when it happened
+  receivedAt DateTime      @default(now())
+  applied    Boolean       @default(true) // false = logged but superseded by a newer seq
 
-  mock       MockTest  @relation(fields: [mockId], references: [id], onDelete: Cascade)
+  mock MockTest @relation(fields: [mockId], references: [id], onDelete: Cascade)
 
   @@id([mockId, seq])
   @@index([mockId, questionId])
 }
+
 // prisma/schema-additions-part7.prisma
 //
 // Merge these models into the main prisma/schema.prisma written in
@@ -1013,26 +1015,26 @@ model AIUsageLog {
   userId             String
   provider           String
   model              String
-  purpose            String   // study_report_extraction | mistake_classification | explanation | hint | eval
+  purpose            String // study_report_extraction | mistake_classification | explanation | hint | eval
   requestCount       Int      @default(1)
   inputTokens        Int?
   outputTokens       Int?
   estimatedCostCents Float?
   cacheHit           Boolean  @default(false)
-  date               String   // YYYY-MM-DD, indexed for daily-cap queries
+  date               String // YYYY-MM-DD, indexed for daily-cap queries
   createdAt          DateTime @default(now())
 
   @@index([userId, date])
 }
 
 model AIInteraction {
-  id            String   @id @default(cuid())
-  userId        String
-  kind          String   // chat_message | mistake_suggestion | hint_request
-  input         String   @db.Text
-  outputRaw     String?  @db.Text
-  validated     Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String // chat_message | mistake_suggestion | hint_request
+  input     String   @db.Text
+  outputRaw String?  @db.Text
+  validated Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   @@index([userId, kind, createdAt])
 }
@@ -1040,12 +1042,12 @@ model AIInteraction {
 // Cache for explanation.service.ts — keyed on questionId + the mastery/
 // content version so a later content edit invalidates stale explanations.
 model AIOutput {
-  id             String   @id @default(cuid())
-  questionId     String
-  kind           String   // explanation | hint_hint_1 | hint_hint_2 | ...
-  contentHash    String   // hash of (question content + trusted solution)
-  output         String   @db.Text
-  createdAt      DateTime @default(now())
+  id          String   @id @default(cuid())
+  questionId  String
+  kind        String // explanation | hint_hint_1 | hint_hint_2 | ...
+  contentHash String // hash of (question content + trusted solution)
+  output      String   @db.Text
+  createdAt   DateTime @default(now())
 
   @@unique([questionId, kind, contentHash])
 }
@@ -1055,14 +1057,103 @@ model AIOutput {
 // actually needs job-level AI-cost attribution (e.g. batch explanation
 // pre-generation).
 model Job {
-  id          String   @id @default(cuid())
-  type        String
-  status      String   // pending | running | succeeded | failed
-  payload     Json?
-  error       String?
-  attempts    Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  type      String
+  status    String // pending | running | succeeded | failed
+  payload   Json?
+  error     String?
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([type, status])
+}
+
+// ---------------------------------------------------------------------
+// Part 8 — Resource ingestion (architecture §46–§48)
+//
+// The tutor answers from material that a scheduled job fetched from the
+// public internet, not from whatever the model happens to remember. Every
+// chunk keeps its provenance (sourceUrl, licence, reliability class) so an
+// answer can cite what it used and a low-reliability page never outranks an
+// official one.
+// ---------------------------------------------------------------------
+
+enum ResourceReliability {
+  OFFICIAL
+  VERIFIED
+  CURATED
+  COMMUNITY
+  AI_GENERATED
+}
+
+model Resource {
+  id          String              @id @default(cuid())
+  url         String              @unique
+  title       String
+  site        String
+  reliability ResourceReliability @default(COMMUNITY)
+  subjectId   String?
+  fetchedAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  versions ResourceVersion[]
+
+  @@index([reliability])
+  @@index([site])
+}
+
+model ResourceVersion {
+  id          String   @id @default(cuid())
+  resourceId  String
+  resource    Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  contentHash String   @unique
+  title       String
+  text        String   @db.Text
+  license     String?
+  retrievedAt DateTime @default(now())
+
+  chunks ResourceChunk[]
+
+  @@index([resourceId, retrievedAt])
+}
+
+/// One retrievable passage. Kept deliberately small so a citation points at
+/// a section rather than a whole page.
+model ResourceChunk {
+  id                String              @id @default(cuid())
+  resourceVersionId String
+  resourceVersion   ResourceVersion     @relation(fields: [resourceVersionId], references: [id], onDelete: Cascade)
+  resourceId        String
+  title             String
+  section           String?
+  sourceUrl         String
+  text              String              @db.Text
+  // Cheap lexical index for retrieval; V1 has no embedding column yet
+  // (architecture §46 defers pgvector).
+  searchText        String              @db.Text
+  reliability       ResourceReliability @default(COMMUNITY)
+  conceptIds        String[]            @default([])
+  ordinal           Int                 @default(0)
+  createdAt         DateTime            @default(now())
+
+  @@index([resourceId])
+  @@index([reliability])
+}
+
+/// Human-readable audit of every mutation the tutor proposed and the student
+/// accepted. The chatbot never writes learning state on its own: it records a
+/// proposal, the student confirms it, and the confirmed proposal is applied by
+/// the same domain services the manual UI uses. This table is that trail.
+model TutorActionLog {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String
+  unitId    String?
+  payload   Json     @default("{}")
+  applied   Boolean  @default(false)
+  effects   String[] @default([])
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

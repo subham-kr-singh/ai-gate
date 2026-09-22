@@ -66,7 +66,7 @@ export function MobileNav({ active = "today", initial = "G" }: { active?: NavKey
           />
           <nav
             aria-label="All destinations"
-            className="absolute inset-y-0 right-0 flex w-[min(20rem,85vw)] flex-col gap-6 overflow-y-auto bg-[#F8F6F2] p-6 shadow-xl"
+            className="absolute inset-y-0 right-0 flex w-[min(20rem,85vw)] flex-col gap-6 overflow-y-auto border-l border-[#E3E0DA] bg-[#F8F6F2] p-6"
           >
             {NAV_GROUPS.map((group) => (
               <section key={group.label}>
