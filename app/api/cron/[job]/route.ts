@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/server/db/client";
 import { DPP_CONFIG_V1 } from "@/server/domains/dpp/dpp.config";
 import { generateTodaysDPP } from "@/server/domains/dpp/dpp.service";
+import { ingestAllSources } from "@/server/domains/resources/resource.service";
 import { runDailyMaintenance } from "@/server/jobs/daily-maintenance";
 import { runMockMaintenance } from "@/server/jobs/mock-maintenance";
 import { runWeeklyReview } from "@/server/jobs/weekly-review";
@@ -15,6 +16,10 @@ export const maxDuration = 300;
  * anything else is rejected so the endpoints cannot be triggered from outside.
  *
  * Every job is idempotent, so a retry after a timeout is safe.
+ *
+ * `resources` is the internet-data job: it refreshes the tutor's citation
+ * library from the configured public sources. It has its own weekly schedule
+ * (vercel.json) so a slow or failing fetch never delays planning work.
  */
 export async function GET(req: Request, { params }: { params: { job: string } }) {
   const secret = process.env.CRON_SECRET;
@@ -53,6 +58,13 @@ export async function GET(req: Request, { params }: { params: { job: string } })
         }
       }
       return NextResponse.json({ job: "daily", at: now.toISOString(), users: results.length, mocks, results });
+    }
+
+    // Internet-data job: refresh the tutor's citation library. Isolated in its
+    // own branch so a dead upstream host cannot fail the planning jobs.
+    if (params.job === "resources") {
+      const summary = await ingestAllSources();
+      return NextResponse.json({ job: "resources", at: now.toISOString(), ...summary });
     }
 
     if (params.job === "weekly") {

@@ -3,8 +3,16 @@ import * as questionRepo from "@/server/domains/questions/question.repository";
 import { getMarkingRule } from "@/server/domains/grading/marking-scheme";
 import { gradeAnswer, type SubmittedAnswer } from "@/server/domains/grading/grading.service";
 import { recordAttempt } from "@/server/domains/attempts/attempt.service";
+import { recordAnswers } from "@/server/domains/mastery/mastery.service";
+import type { Confidence } from "@/server/domains/mastery/mastery.math";
+import { GATE_EXAM_YEAR } from "@/lib/exam";
 import type { DraftAnswerEntry, DraftAnswers, SubmitResult } from "./test.types";
 import { z } from "zod";
+
+/** A question written in an earlier GATE year is previous-year material. */
+function isPyqQuestion(year: number | null | undefined): boolean {
+  return Boolean(year && year < GATE_EXAM_YEAR);
+}
 
 const autosaveInputSchema = z.object({
   questionId: z.string().min(1),
@@ -179,6 +187,28 @@ export async function submitTest(testId: string, userId: string): Promise<Submit
   });
 
   await repo.markSubmitted(testId, { totalMarks, scoredMarks, accuracy });
+
+  // Topic quizzes are ordinary practice, so their answers are evidence exactly
+  // like a DPP or a mock. Without this the quiz wrote an Attempt nobody read:
+  // mastery, mistakes and the revision queue never moved. Answer ids keep it
+  // idempotent, and recordAnswers() itself allocates the untagged mistakes.
+  await recordAnswers(
+    userId,
+    attempt.answers
+      .filter((a) => a.selectedAnswer !== null)
+      .map((a) => {
+        const g = graded[a.seq]!;
+        return {
+          answerId: a.id,
+          questionId: a.questionId,
+          correct: a.correct,
+          isPyq: isPyqQuestion(questionById.get(a.questionId)?.year),
+          timeMs: g.timeTakenMs ?? null,
+          confidence: (g.confidence as Confidence | undefined) ?? null,
+          answeredAt: attempt.submittedAt,
+        };
+      }),
+  );
 
   return {
     testId,
