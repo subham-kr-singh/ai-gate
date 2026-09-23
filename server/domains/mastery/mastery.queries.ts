@@ -7,6 +7,7 @@ import type { CompletionReason, UnitStatus } from "./completion.service";
 import { DEFAULT_MASTERY_CONFIG } from "./mastery.config";
 import { computeRetention } from "./mastery.math";
 import { loadConceptStats } from "./mastery.repository";
+import { PLANNER_CONFIG } from "../planner/planner.config";
 
 const DAY = 86_400_000;
 
@@ -25,12 +26,14 @@ export interface Overview {
   questionsLast7d: number;
   questionsPrev7d: number;
   questionsLast24h: number;
+  mocksCompleted: number;
+  mocksTarget: number;
 }
 
 export async function getOverview(userId: string, now = new Date()): Promise<Overview> {
   const cfg = DEFAULT_MASTERY_CONFIG;
   const since = (days: number) => new Date(now.getTime() - days * DAY);
-  const [totalUnits, states, reviewsDue, openMistakes, untaggedMistakes, weakConceptCount, q7, qPrev, q24] = await Promise.all([
+  const [totalUnits, states, reviewsDue, openMistakes, untaggedMistakes, weakConceptCount, q7, qPrev, q24, mocksCompleted] = await Promise.all([
     lookup.countUnits(),
     prisma.learningState.findMany({ where: { userId }, select: { coverage: true, mastery: true, status: true } }),
     prisma.reviewState.count({ where: { userId, dueAt: { lte: now } } }),
@@ -40,6 +43,7 @@ export async function getOverview(userId: string, now = new Date()): Promise<Ove
     prisma.appliedOutcome.count({ where: { userId, appliedAt: { gte: since(7) } } }),
     prisma.appliedOutcome.count({ where: { userId, appliedAt: { gte: since(14), lt: since(7) } } }),
     prisma.appliedOutcome.count({ where: { userId, appliedAt: { gte: since(1) } } }),
+    prisma.mockTest.count({ where: { userId, status: "SUBMITTED" } }),
   ]);
   const denom = Math.max(1, totalUnits);
   return {
@@ -55,6 +59,8 @@ export async function getOverview(userId: string, now = new Date()): Promise<Ove
     questionsLast7d: q7,
     questionsPrev7d: qPrev,
     questionsLast24h: q24,
+    mocksCompleted,
+    mocksTarget: PLANNER_CONFIG.actions.mockTarget,
   };
 }
 
@@ -103,13 +109,20 @@ export async function getWeakUnitReport(userId: string, limit = 5): Promise<Unit
 }
 
 /** Units in progress, most recently touched first ("Continue learning"). */
-export async function getContinueLearning(userId: string, limit = 3): Promise<UnitProgress[]> {
+export async function getContinueLearning(userId: string, limit = 3, subjectId?: string | null): Promise<UnitProgress[]> {
+  const where = subjectId ? { unitId: { in: await unitIdsOfSubject(subjectId) } } : {};
   const rows = await prisma.learningState.findMany({
-    where: { userId, status: { in: ["LEARNING", "PRACTICING", "REVISION_DUE"] } },
+    where: { userId, status: { in: ["LEARNING", "PRACTICING", "REVISION_DUE"] }, ...where },
     orderBy: { updatedAt: "desc" },
     take: limit,
   });
   return toProgress(rows);
+}
+
+/** Unit ids of one subject; empty array when the subject has no units. */
+async function unitIdsOfSubject(subjectId: string): Promise<string[]> {
+  const rows = await prisma.unit.findMany({ where: { subjectId }, select: { id: true } });
+  return rows.map((r) => r.id);
 }
 
 export interface WeakConcept {
@@ -121,10 +134,18 @@ export interface WeakConcept {
   mistakes: number;
 }
 
-export async function getWeakConcepts(userId: string, limit = 8, now = new Date()): Promise<WeakConcept[]> {
+export async function getWeakConcepts(
+  userId: string,
+  limit = 8,
+  now = new Date(),
+  subjectId?: string | null,
+): Promise<WeakConcept[]> {
   const cfg = DEFAULT_MASTERY_CONFIG;
+  const scope = subjectId
+    ? { conceptId: { in: await conceptIdsOfSubject(subjectId) } }
+    : {};
   const rows = await prisma.conceptStats.findMany({
-    where: { userId, mastery: { lt: cfg.weakBelow }, attempts: { gte: cfg.minAttemptsForWeakList } },
+    where: { userId, mastery: { lt: cfg.weakBelow }, attempts: { gte: cfg.minAttemptsForWeakList }, ...scope },
     orderBy: [{ mastery: "asc" }, { mistakes: "desc" }],
     take: limit,
   });
@@ -150,13 +171,40 @@ export interface PendingRevision {
 }
 
 /** Reviews that are due now, with live retention for the progress bar. */
-export async function getPendingRevision(userId: string, limit = 4, now = new Date()): Promise<PendingRevision[]> {
-  const due = await getDueReviews(userId, now, limit);
-  const stats = await loadConceptStats(prisma, userId, due.map((d) => d.conceptId));
-  return due.map((d) => {
+export async function getPendingRevision(
+  userId: string,
+  limit = 4,
+  now = new Date(),
+  subjectId?: string | null,
+): Promise<PendingRevision[]> {
+  // Scope after fetching: getDueReviews is ordered by dueAt and limited, so
+  // filtering inside would silently drop due items outside the subject.
+  const due = await getDueReviews(userId, now, subjectId ? limit * 6 : limit);
+  const scoped = subjectId ? await scopeDueToSubject(subjectId, due, limit) : due;
+  const stats = await loadConceptStats(prisma, userId, scoped.map((d) => d.conceptId));
+  return scoped.map((d) => {
     const s = stats.get(d.conceptId);
     return { conceptId: d.conceptId, name: d.concept, retention: s ? computeRetention(s.mastery, s.lastSeen, now) : null };
   });
+}
+
+/** Due reviews belonging to one subject, preserving dueAt order. */
+async function scopeDueToSubject<T extends { unitId: string }>(
+  subjectId: string,
+  due: T[],
+  limit: number,
+): Promise<T[]> {
+  const ids = new Set(await unitIdsOfSubject(subjectId));
+  return due.filter((d) => ids.has(d.unitId)).slice(0, limit);
+}
+
+/** Concept ids belonging to one subject, via its units' topics. */
+async function conceptIdsOfSubject(subjectId: string): Promise<string[]> {
+  const rows = await prisma.concept.findMany({
+    where: { topic: { unit: { subjectId } } },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
 }
 
 export interface ConceptGateItem {

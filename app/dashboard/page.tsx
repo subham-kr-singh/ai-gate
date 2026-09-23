@@ -1,55 +1,83 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ConceptGateList } from "@/components/dashboard/ConceptGateList";
+import { DashboardPanel, type SubjectOption } from "@/components/dashboard/DashboardPanel";
 import { CoverageBadge } from "@/components/dashboard/CoverageBadge";
 import { MasteryBar } from "@/components/dashboard/MasteryBar";
-import { StatTile } from "@/components/dashboard/StatTile";
 import { SubjectBadge } from "@/components/dashboard/SubjectBadge";
 import { WeakConceptList } from "@/components/dashboard/WeakConceptList";
 import { AppShell } from "@/components/shell/AppShell";
+import { weekDays } from "@/components/planner/format";
 import { primaryReason } from "@/lib/reason-text";
 import { ui } from "@/lib/ui-tokens";
 import { getCurrentUser } from "@/server/auth/session";
-import { DEFAULT_MASTERY_CONFIG } from "@/server/domains/mastery/mastery.config";
+import { getActivitySeries, getSubjectRollups } from "@/server/domains/mastery/dashboard.queries";
 import {
-  getConceptGate,
   getContinueLearning,
   getOverview,
   getPendingRevision,
   getWeakConcepts,
-  getWeakUnitReport,
 } from "@/server/domains/mastery/mastery.queries";
+import { getPlanSettings, getToday } from "@/server/domains/planner/planner.service";
+
+export const dynamic = "force-dynamic";
+
+/** Whole days from `from` to `to`, both YYYY-MM-DD, at UTC midnight. */
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: { subject?: string };
+}) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const name = (user as { name?: string | null }).name || user!.email.split("@")[0] || "Student";
 
-  const [overview, continueLearning, weakUnits, weakConcepts, revision] = await Promise.all([
+  // The plan owns the timezone, and every day-bucketed read below needs it, so
+  // both are resolved before the parallel batch.
+  const [today, settings] = await Promise.all([getToday(user.id), getPlanSettings(user.id)]);
+  const tz = settings.timezone;
+
+  const [overview, rollups, allWeek] = await Promise.all([
     getOverview(user.id),
-    getContinueLearning(user.id, 3),
-    getWeakUnitReport(user.id, 1),
-    getWeakConcepts(user.id, 4),
-    getPendingRevision(user.id, 4),
+    getSubjectRollups(user.id),
+    getActivitySeries(user.id, { days: 7, timezone: tz }),
   ]);
-  const focusUnit = weakUnits[0];
-  const gate = focusUnit ? await getConceptGate(user.id, focusUnit.unitId) : [];
 
-  const n = overview.weakConceptCount;
-  const heading =
-    n > 0
-      ? `${plural(n, "weak concept needs", "weak concepts need")} work today.`
-      : overview.unitsStarted === 0
-        ? "Start with a topic quiz."
-        : "No weak concepts right now.";
-  const sub = `Your revision queue has ${plural(overview.reviewsDue, "item", "items")} due and ${plural(overview.openMistakes, "mistake is", "mistakes are")} still open.`;
+  const subjects: SubjectOption[] = rollups.map((r) => ({
+    subjectId: r.subjectId,
+    subject: r.subject,
+    questionsLast7d: r.questionsLast7d,
+    openMistakes: r.openMistakes,
+    unitsStarted: r.unitsStarted,
+    totalUnits: r.totalUnits,
+    coverage: r.coverage,
+    mastery: r.mastery,
+  }));
 
-  const change =
-    overview.questionsPrev7d > 0
-      ? Math.round(((overview.questionsLast7d - overview.questionsPrev7d) / overview.questionsPrev7d) * 100)
-      : null;
+  // An unknown ?subject= is ignored rather than erroring, and only ids that
+  // exist in `subjects` ever reach a query.
+  const requested = searchParams?.subject ?? null;
+  const subjectId = requested && subjects.some((s) => s.subjectId === requested) ? requested : null;
+
+  // The week is fetched unscoped in the batch above (so it can run in parallel
+  // with the rollups the filter is validated against), then re-read only when a
+  // filter actually narrows it. With no filter this is the value already in
+  // hand, and the 30-day series is left to the chart to request on demand.
+  const week = subjectId ? await getActivitySeries(user.id, { days: 7, timezone: tz, subjectId }) : allWeek;
+
+  const [continueLearning, revision, weakConcepts] = await Promise.all([
+    getContinueLearning(user.id, 3, subjectId),
+    getPendingRevision(user.id, 4, new Date(), subjectId),
+    getWeakConcepts(user.id, 4, new Date(), subjectId),
+  ]);
+
+  const strip = weekDays(today.forDate);
+  const daysToExam = settings.examDate ? daysBetween(today.forDate, settings.examDate) : null;
 
   const aside = (
     <>
@@ -98,41 +126,28 @@ export default async function DashboardPage() {
         <h1 className="text-xl font-semibold text-[#111111]">{name}</h1>
       </div>
 
-      <section aria-label="Today" className="rounded-[24px] bg-[#0E8074] p-7 text-white md:p-8">
-        <h2 className="font-semibold leading-[1.05]" style={{ fontSize: "clamp(24px,2.6vw,34px)" }}>{heading}</h2>
-        <p className="mt-2 max-w-md text-sm text-white/80">{sub}</p>
-      </section>
-
-      <section aria-label="Summary" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatTile
-          fill={ui.tile.butter}
-          label="Questions this week"
-          value={String(overview.questionsLast7d)}
-          delta={change === null ? null : { text: `${change >= 0 ? "\u2191" : "\u2193"} ${Math.abs(change)}%`, tone: change >= 0 ? "good" : "attention" }}
-          note={`${overview.questionsLast24h} in the last 24 hours`}
-        />
-        <StatTile
-          fill={ui.tile.sky}
-          label="Syllabus coverage"
-          value={`${Math.round(overview.coverage * 100)}%`}
-          note={`${overview.unitsStarted} / ${overview.totalUnits} units started`}
-        />
-        <StatTile
-          fill={ui.tile.lavender}
-          label="Open mistakes"
-          value={String(overview.openMistakes)}
-          delta={overview.untaggedMistakes > 0 ? { text: `${overview.untaggedMistakes} to tag`, tone: "attention" } : null}
-          note="Tag why you missed them"
-        />
-      </section>
+      <DashboardPanel
+        week={week}
+        overview={overview}
+        subjects={subjects}
+        subjectId={subjectId}
+        daysToExam={daysToExam}
+        weekStrip={strip}
+      />
 
       <section aria-labelledby="continue">
         <div className="mb-3 flex items-center justify-between">
-          <h2 id="continue" className="font-semibold text-[#111111]">Continue learning</h2>
+          <h2 id="continue" className="font-semibold text-[#111111]">
+            Continue learning
+          </h2>
           <span className="text-sm text-[#77736D]">{overview.weakUnitCount} in progress</span>
         </div>
         {continueLearning.length === 0 ? (
-          <p className="text-sm text-[#77736D]">No units in progress. Take a topic quiz or log a study session to start one.</p>
+          <p className="text-sm text-[#77736D]">
+            {subjectId
+              ? "No units in progress for this subject. Take a topic quiz to start one."
+              : "No units in progress. Take a topic quiz or log a study session to start one."}
+          </p>
         ) : (
           <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-3">
             {continueLearning.map((u) => (
@@ -152,10 +167,6 @@ export default async function DashboardPage() {
           </ul>
         )}
       </section>
-
-      {focusUnit && gate.length > 0 && (
-        <ConceptGateList title={`${focusUnit.unit}: concepts`} items={gate} gateAt={DEFAULT_MASTERY_CONFIG.prerequisiteGateAt} />
-      )}
     </AppShell>
   );
 }
