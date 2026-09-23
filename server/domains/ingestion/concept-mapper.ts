@@ -143,12 +143,35 @@ interface Candidate {
   kind: "unit" | "topic" | "concept";
 }
 
-function subjectCodeFromTags(tags: string[]): string | null {
+export function subjectCodeFromTags(tags: string[]): string | null {
   for (const tag of tags) {
     const code = TAG_TO_SUBJECT_CODE[normalize(tag).replace(/\s+/g, "-")];
     if (code) return code;
   }
   return null;
+}
+
+/** Subject codes this app actually has, so an adapter's free-text hint can be
+ * validated before it is allowed to scope a match. */
+export function isKnownSubjectCode(code: string): boolean {
+  return SUBJECT_CODES.has(code.toUpperCase());
+}
+
+const SUBJECT_CODES = new Set(Object.values(TAG_TO_SUBJECT_CODE));
+
+/** Normalises a free-text subject hint (an adapter sees "Database Management
+ * System", the app stores "DBMS") into a known Subject.code. */
+export function subjectCodeFromHint(hint: string | null | undefined): string | null {
+  if (!hint) return null;
+  const upper = hint.trim().toUpperCase();
+  if (SUBJECT_CODES.has(upper)) return upper;
+  return TAG_TO_SUBJECT_CODE[normalize(hint).replace(/\s+/g, "-")] ?? null;
+}
+
+/** A free-text query plus the label to record when it produces the match. */
+export interface MappingQuery {
+  text: string;
+  matchedOn: ConceptMapping["matchedOn"];
 }
 
 /**
@@ -195,10 +218,16 @@ export function createConceptMapper(syllabusVersionId: string) {
 
   const MIN_CONFIDENCE = 0.34;
 
-  return async function mapBlock(block: QuestionBlock): Promise<ConceptMapping | null> {
-    const all = await loadCandidates();
-    const subjectCode = subjectCodeFromTags(block.tags);
+  /**
+   * The source-agnostic matcher. `subjectCode` scopes the search; `queries`
+   * are tried in order and the first one clear of MIN_CONFIDENCE wins.
+   */
+  async function mapHints(
+    subjectCode: string | null,
+    queries: MappingQuery[]
+  ): Promise<ConceptMapping | null> {
     if (!subjectCode) return null;
+    const all = await loadCandidates();
 
     // Scope every match to the mapped subject's own subtree.
     const subjectRows = await syllabusRepo.findSyllabusTreeRows(syllabusVersionId);
@@ -206,11 +235,10 @@ export function createConceptMapper(syllabusVersionId: string) {
     if (!subject) return null;
 
     const scoped = all.filter((c) => c.subjectId === subject.id);
-    const queries = [block.sectionTitle, block.topicTitle, block.chapterTitle]
-      .filter((q): q is string => Boolean(q && q.trim()));
+    const usable = queries.filter((q) => q.text.trim());
 
-    for (const [stage, query] of queries.entries()) {
-      const norm = normalize(query);
+    for (const query of usable) {
+      const norm = normalize(query.text);
       const synonyms = new Set<string>();
       for (const [key, values] of Object.entries(SYNONYMS)) {
         if (norm.includes(key)) for (const v of values) synonyms.add(normalize(v));
@@ -221,7 +249,7 @@ export function createConceptMapper(syllabusVersionId: string) {
         const candNorm = normalize(cand.label);
         // A synonym hit is a strong signal but still needs to win on score.
         const boosted = synonyms.has(candNorm) ? 1 : 0;
-        const score = Math.max(similarity(query, cand.label), boosted);
+        const score = Math.max(similarity(query.text, cand.label), boosted);
         // Prefer more specific entities when scores tie.
         const depthBonus = cand.kind === "concept" ? 0.02 : cand.kind === "topic" ? 0.01 : 0;
         const total = score + depthBonus;
@@ -236,16 +264,16 @@ export function createConceptMapper(syllabusVersionId: string) {
           topicId: best.cand.topicId,
           conceptIds: best.cand.conceptId ? [best.cand.conceptId] : [],
           confidence: Number(best.score.toFixed(3)),
-          matchedOn: stage === 0 ? "section-title" : stage === 1 ? "tag" : "chapter-title",
-          rationale: `"${query}" -> ${best.cand.kind} "${best.cand.label}" (score ${best.score.toFixed(2)})`,
+          matchedOn: query.matchedOn,
+          rationale: `"${query.text}" -> ${best.cand.kind} "${best.cand.label}" (score ${best.score.toFixed(2)})`,
         };
       }
     }
 
     // Last resort: the app's own matcher, scoped by requiring its subject to
-    // agree with the tag-derived subject.
-    for (const query of queries) {
-      const resolved = await resolveEntity(syllabusVersionId, query);
+    // agree with the hint-derived subject.
+    for (const query of usable) {
+      const resolved = await resolveEntity(syllabusVersionId, query.text);
       if (resolved && resolved.subjectId === subject.id && resolved.unitId && resolved.topicId) {
         return {
           subjectId: resolved.subjectId,
@@ -254,12 +282,21 @@ export function createConceptMapper(syllabusVersionId: string) {
           topicId: resolved.topicId,
           conceptIds: resolved.conceptId ? [resolved.conceptId] : [],
           confidence: Number(resolved.confidence.toFixed(3)),
-          matchedOn: "section-title",
-          rationale: `resolveEntity("${query}") -> ${resolved.matchedOn} @ ${resolved.confidence.toFixed(2)}`,
+          matchedOn: query.matchedOn,
+          rationale: `resolveEntity("${query.text}") -> ${resolved.matchedOn} @ ${resolved.confidence.toFixed(2)}`,
         };
       }
     }
 
     return null;
-  };
+  }
+
+  const mapBlock = (block: QuestionBlock) =>
+    mapHints(subjectCodeFromTags(block.tags), [
+      { text: block.sectionTitle ?? "", matchedOn: "section-title" },
+      { text: block.topicTitle ?? "", matchedOn: "tag" },
+      { text: block.chapterTitle ?? "", matchedOn: "chapter-title" },
+    ]);
+
+  return Object.assign(mapBlock, { mapHints });
 }

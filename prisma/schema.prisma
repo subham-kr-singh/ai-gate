@@ -1166,15 +1166,24 @@ model TutorActionLog {
 /// the PDF, and `contentHash` makes re-running ingestion idempotent.
 model IngestedQuestionDraft {
   id               String      @id @default(cuid())
-  sourcePdfUrl     String
+  /// Registry id of the adapter that produced this draft ("gopdfs", "examside").
+  sourceAdapterId  String      @default("gopdfs")
+  /// Nullable: web sources have no PDF artifact, only a deep link.
+  sourcePdfUrl     String?
   sourceReleaseTag String
   /// `chapter.section.question` id from the source PDF, for traceability.
   sourceQuestionId String?
   rawBlockText     String
+  /// Normalised statement used for cross-source duplicate detection (§102).
+  normalizedStatement String?
   extracted        Json
   /// Classification evidence (subject/unit/topic/concept ids, confidence and
   /// rationale). Null when no match cleared the confidence floor.
   classification   Json?
+  /// Provenance chain for this record (§53): every URL it was read from.
+  provenance       Json?
+  /// Other sources that stated the same question, as corroboration (§102).
+  corroboratingSources Json?
   status           DraftStatus @default(DRAFT)
   validationErrors String[]
   contentHash      String      @unique
@@ -1185,6 +1194,8 @@ model IngestedQuestionDraft {
 
   @@index([status])
   @@index([sourceReleaseTag])
+  @@index([sourceAdapterId])
+  @@index([normalizedStatement])
 }
 
 enum DraftStatus {

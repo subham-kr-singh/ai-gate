@@ -1,7 +1,7 @@
 import { questionInputSchema, type QuestionInput } from "@/server/domains/questions/question.schema";
 import { computeContentHash } from "@/server/domains/questions/question.service";
 import type { ConceptMapping } from "./concept-mapper";
-import type { QuestionBlock } from "./segmenter";
+import type { ExtractedQuestion, ProvenanceRef } from "./sources/types";
 
 export type CanonicalQuestionType = "MCQ" | "MSQ" | "NAT";
 
@@ -19,17 +19,25 @@ export interface ClassificationEvidence {
 }
 
 export interface BuiltRecord {
-  /** `chapter.section.question` from the source PDF. */
+  /** The source's own stable id for this question. */
   sourceQuestionId: string;
   source: {
+    /** Registry id of the adapter that produced this record. */
+    adapterId: string;
     exam: string | null;
     year: number | null;
     questionRef: string | null;
+    /** Source unit id (GO release tag, ExamSide chapter slug, …). */
     releaseTag: string;
-    pdfUrl: string;
-    page: number;
+    /** The artifact the text was read from, when there is one. */
+    pdfUrl: string | null;
+    /** Deep link a reviewer can open. */
+    sourceUrl: string | null;
+    page: number | null;
+    license: string;
+    provenance: ProvenanceRef[];
   };
-  /** GO tags, kept for the reviewer even after normalisation. */
+  /** Source metadata tags, kept for the reviewer after normalisation. */
   sourceTags: string[];
   classification: ClassificationEvidence | null;
   contentHash: string;
@@ -39,25 +47,6 @@ export interface BuiltRecord {
   errors: string[];
   /** True when every check passed and the record is safe to publish. */
   publishable: boolean;
-}
-
-function parseMarks(tags: string[]): number {
-  if (tags.includes("two-marks")) return 2;
-  return 1;
-}
-
-function parseDifficulty(tags: string[]): number {
-  if (tags.includes("easy")) return 2;
-  if (tags.includes("hard")) return 4;
-  if (tags.includes("medium")) return 4;
-  return 3;
-}
-
-function inferType(block: QuestionBlock): CanonicalQuestionType | null {
-  if (block.tags.includes("numerical-answers")) return "NAT";
-  if (block.tags.includes("multiple-selects")) return "MSQ";
-  if (block.options.length >= 2) return "MCQ";
-  return null;
 }
 
 /**
@@ -103,7 +92,9 @@ export function parseMultiSelectAnswer(raw: string): string[] {
 }
 
 /**
- * Converts one segmented block into a canonical, Zod-validated record.
+ * Turns one adapter-extracted question into a canonical, Zod-validated
+ * record. Source-agnostic: the adapter has already resolved *what* the
+ * question says, and this decides whether it is safe to publish.
  *
  * Nothing is guessed silently: whenever the source text is insufficient to
  * build a question that could be graded correctly (rasterised math, a missing
@@ -111,51 +102,44 @@ export function parseMultiSelectAnswer(raw: string): string[] {
  * `errors` and `publishable` stays false. The caller stores these as drafts
  * awaiting human review, per the architecture's no-auto-publish rule.
  */
-export function buildRecord(args: {
-  block: QuestionBlock;
-  answer: string | undefined;
+export function assembleRecord(args: {
+  extracted: ExtractedQuestion;
   mapping: ConceptMapping | null;
-  releaseTag: string;
-  pdfUrl: string;
+  /** Registry id of the adapter that produced `extracted`. */
+  adapterId: string;
+  /** Source unit id, recorded as `releaseTag`. */
+  unitId: string;
+  license: string;
 }): BuiltRecord {
-  const { block, answer, mapping, releaseTag, pdfUrl } = args;
-  const errors: string[] = [];
+  const { extracted, mapping, adapterId, unitId, license } = args;
+  const errors: string[] = [...extracted.errors];
 
-  if (block.hasImageContent) {
-    errors.push(
-      `Contains ${block.imageLineCount} line(s) of rasterised math/formula; the extracted text is incomplete.`
-    );
-  }
+  const options = extracted.options ?? [];
+  const type = extracted.type ?? null;
+
   if (!mapping) {
     errors.push("Could not resolve a syllabus subject/unit/topic for this block.");
   }
-  const type = inferType(block);
   if (!type) {
     errors.push(
-      `Unsupported question shape for the canonical schema (tags: ${block.tags.join(", ") || "none"}, options: ${block.options.length}).`
+      `Unsupported question shape for the canonical schema (tags: ${(extracted.sourceTags ?? []).join(", ") || "none"}, options: ${options.length}).`
     );
   }
-  if (block.statement.trim().length < 20) {
+  if (extracted.statement.trim().length < 20) {
     errors.push("Statement is too short to be a complete question.");
   }
 
-  const emptyOptions = block.options.filter((o) => o.text.trim().length === 0);
-  if (emptyOptions.length > 0) {
-    errors.push(
-      `${emptyOptions.length} option(s) (${emptyOptions.map((o) => o.label).join(", ")}) have no extractable text.`
-    );
+  const unreadable = options.filter((o) => o.text.trim().length === 0).map((o) => o.id);
+  if (unreadable.length > 0) {
+    errors.push(`${unreadable.length} option(s) (${unreadable.join(", ")}) have no extractable text.`);
   }
 
-  let options: { id: string; text: string }[] | undefined;
   let correctAnswer: string | string[] | undefined;
-  let natTolerance: { min: number; max: number } | undefined;
+  let natTolerance = extracted.natTolerance;
 
-  if (type === "MCQ" || type === "MSQ") {
-    options = block.options.map((o) => ({ id: o.label, text: o.text.trim() }));
-  }
-
-  const ans = (answer ?? "").trim();
-  if (!ans || ans.toUpperCase() === "N/A") {
+  const rawAnswer = extracted.correctAnswer;
+  const ans = Array.isArray(rawAnswer) ? rawAnswer.join(";") : (rawAnswer ?? "").trim();
+  if (!ans) {
     errors.push("No answer key entry for this question (source prints N/A or omits it).");
   } else if (type === "NAT") {
     const nat = parseNatAnswer(ans);
@@ -167,12 +151,12 @@ export function buildRecord(args: {
     }
   } else if (type === "MCQ") {
     const letter = ans.replace(/[^A-Ea-e]/g, "").toUpperCase();
-    const option = block.options.find((o) => o.label === letter);
+    const option = options.find((o) => o.id === letter);
     if (!option) errors.push(`Answer "${ans}" does not match any printed option.`);
-    else correctAnswer = option.label;
+    else correctAnswer = option.id;
   } else if (type === "MSQ") {
-    const letters = parseMultiSelectAnswer(ans);
-    const valid = letters.filter((l) => block.options.some((o) => o.label === l));
+    const letters = Array.isArray(rawAnswer) ? rawAnswer : parseMultiSelectAnswer(ans);
+    const valid = letters.filter((l) => options.some((o) => o.id === l));
     if (valid.length === 0) errors.push(`Multi-select answer "${ans}" has no matching options.`);
     else correctAnswer = valid;
   }
@@ -183,17 +167,20 @@ export function buildRecord(args: {
     topicId: mapping?.topicId,
     conceptIds: mapping?.conceptIds ?? [],
     type: type ?? undefined,
-    marks: parseMarks(block.tags),
-    negativeMarks: 0,
-    statement: block.statement.trim(),
-    options,
+    marks: extracted.marks ?? 1,
+    negativeMarks: extracted.negativeMarks ?? 0,
+    statement: extracted.statement.trim(),
+    options:
+      type === "MCQ" || type === "MSQ"
+        ? options.map((o) => ({ id: o.id, text: o.text.trim() }))
+        : undefined,
     correctAnswer,
     natTolerance,
-    year: block.year ?? undefined,
-    source: block.examLabel ?? undefined,
-    sourceUrl: `${pdfUrl}#page=${block.startPage}`,
-    license: "go-pdfs",
-    difficulty: parseDifficulty(block.tags),
+    year: extracted.year ?? undefined,
+    source: extracted.exam ?? undefined,
+    sourceUrl: extracted.sourceUrl ?? undefined,
+    license,
+    difficulty: extracted.difficulty ?? 3,
     status: "DRAFT",
   };
 
@@ -206,22 +193,26 @@ export function buildRecord(args: {
   }
 
   const contentHash = computeContentHash({
-    statement: block.statement,
+    statement: extracted.statement,
     type: (type ?? "MCQ") as QuestionInput["type"],
     correctAnswer: correctAnswer ?? "",
   });
 
   return {
-    sourceQuestionId: block.id,
+    sourceQuestionId: extracted.sourceQuestionId,
     source: {
-      exam: block.examLabel,
-      year: block.year,
-      questionRef: block.questionRef,
-      releaseTag,
-      pdfUrl,
-      page: block.startPage,
+      adapterId,
+      exam: extracted.exam ?? null,
+      year: extracted.year ?? null,
+      questionRef: extracted.questionRef ?? null,
+      releaseTag: unitId,
+      pdfUrl: extracted.artifactUrl ?? null,
+      sourceUrl: extracted.sourceUrl ?? null,
+      page: extracted.page ?? null,
+      license,
+      provenance: extracted.provenance,
     },
-    sourceTags: block.tags,
+    sourceTags: extracted.sourceTags ?? [],
     classification: mapping
       ? {
           subjectId: mapping.subjectId,
@@ -235,7 +226,7 @@ export function buildRecord(args: {
         }
       : null,
     contentHash,
-    rawBlockText: block.rawBlockText,
+    rawBlockText: extracted.rawText,
     extracted: parsed.success ? parsed.data : candidate,
     errors,
     publishable: errors.length === 0 && parsed.success,
