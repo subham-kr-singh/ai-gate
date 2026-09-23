@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { OverrideControls } from "@/components/planner/OverrideControls";
 import { PlanSettingsForm } from "@/components/planner/PlanSettingsForm";
-import { ACTION_LABEL, PASTEL_CLASS, describeReason, formatDay, headline, pct, reasonTone, reasonValue, weekDays } from "@/components/planner/format";
+import { ACTION_LABEL, describeReason, formatDay, headline, pct, reasonTone, reasonValue, weekDays } from "@/components/planner/format";
 import { AppShell } from "@/components/shell/AppShell";
 import { PhaseTrack, ProgressBar, ReasonRows, StatTile, SubjectBadge, WeekStrip, cardClass, pillDark } from "@/components/planner/ui";
 import { requireUserId } from "@/server/auth/session";
@@ -47,12 +47,12 @@ export default async function PlannerPage() {
               <li>
                 <Link href="/flashcards" className="flex items-center justify-between">
                   <span>Flashcards</span>
-                  <span className={`tabular-nums ${t.due.flashcards > 0 ? "text-[#D98E2B]" : "text-[#77736D]"}`}>{t.due.flashcards}</span>
+                  <span className={`tabular-nums ${t.due.flashcards > 0 ? "text-amber" : "text-slate"}`}>{t.due.flashcards}</span>
                 </Link>
               </li>
               <li className="flex items-center justify-between">
                 <span>Concepts overdue</span>
-                <span className={`tabular-nums ${t.due.conceptReviews > 0 ? "text-[#D98E2B]" : "text-[#77736D]"}`}>{t.due.conceptReviews}</span>
+                <span className={`tabular-nums ${t.due.conceptReviews > 0 ? "text-amber" : "text-slate"}`}>{t.due.conceptReviews}</span>
               </li>
             </ul>
           </div>
@@ -64,17 +64,17 @@ export default async function PlannerPage() {
                 {t.needsAttention.map((u) => (
                   <li key={u.unitId} className="flex items-center justify-between gap-3">
                     <span className="truncate">{u.unitName}</span>
-                    <span className="shrink-0 tabular-nums text-[#D98E2B]">{pct(u.mastery)}</span>
+                    <span className="shrink-0 tabular-nums text-amber">{pct(u.mastery)}</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-[#77736D]">No weak units yet. Answer a few questions in a unit and it will show up here.</p>
+              <p className="text-sm text-slate">No weak units yet. Answer a few questions in a unit and it will show up here.</p>
             )}
           </div>
 
           {!t.needsSetup && (
-            <details className="border-t border-[#E3E0DA] pt-4">
+            <details className="border-t border-line pt-4">
               <summary className="cursor-pointer text-sm font-semibold">Plan settings</summary>
               <div className="mt-3">
                 <PlanSettingsForm initial={settings} />
@@ -86,13 +86,13 @@ export default async function PlannerPage() {
     >
       <header>
         <h1 className="text-xl font-semibold">Today</h1>
-        <p className="text-sm text-[#77736D]">{formatDay(t.forDate)}</p>
+        <p className="text-sm text-slate">{formatDay(t.forDate)}</p>
       </header>
 
       {t.needsSetup && (
         <section className={`${cardClass} p-5`} aria-labelledby="setup">
           <h2 id="setup" className="font-semibold">Set your exam date</h2>
-          <p className="mb-4 mt-1 max-w-md text-sm text-[#77736D]">
+          <p className="mb-4 mt-1 max-w-md text-sm text-slate">
             The planner splits your time into four phases and paces the syllabus against them. Until then it assumes phase 1.
           </p>
           <div className="max-w-sm">
@@ -101,7 +101,7 @@ export default async function PlannerPage() {
         </section>
       )}
 
-      <section className="rounded-[24px] bg-[#0E8074] p-7 text-white md:p-8" aria-labelledby="hero">
+      <section className="rounded-[24px] bg-teal p-7 text-white md:p-8" aria-labelledby="hero">
         <h2 id="hero" className="font-semibold leading-[1.05]" style={{ fontSize: "clamp(24px,2.6vw,34px)" }}>
           {primary ? headline(primary) : "Nothing is due right now."}
         </h2>
@@ -114,13 +114,13 @@ export default async function PlannerPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatTile
-          fill={PASTEL_CLASS.butter}
+          tone="butter"
           label="Days to exam"
           value={t.needsSetup ? "Not set" : String(phase.daysToExam)}
           note={`Phase ${phase.phase} of 4${phase.daysLeftInPhase != null ? `, ${phase.daysLeftInPhase} days left in it` : ""}`}
         />
         <StatTile
-          fill={PASTEL_CLASS.sky}
+          tone="sky"
           label="Syllabus coverage"
           value={pct(evidence.syllabusCoverage)}
           delta={paceLabel?.text}
@@ -128,7 +128,7 @@ export default async function PlannerPage() {
           note={pace.projectedFinishKey ? `Projected finish ${formatDay(pace.projectedFinishKey)}` : "Set an exam date to see pace"}
         />
         <StatTile
-          fill={PASTEL_CLASS.lavender}
+          tone="lavender"
           label="Mocks completed"
           value={`${evidence.mocksCompleted} / ${evidence.mockTarget}`}
           note={phase.phase >= 3 ? "Mocks are part of the plan now" : "Mocks start in phase 3"}
@@ -142,7 +142,7 @@ export default async function PlannerPage() {
             <div className="min-w-0">
               <h2 id="next" className="font-semibold">{ACTION_LABEL[primary.action]}{primary.conceptName ? `: ${primary.conceptName}` : ""}</h2>
               {primary.unitName && (
-                <p className="text-xs text-[#77736D]">
+                <p className="text-xs text-slate">
                   {primary.subjectName}, {primary.unitName}
                 </p>
               )}
@@ -161,7 +161,7 @@ export default async function PlannerPage() {
             </Link>
           </div>
 
-          <div className="mt-5 border-t border-[#E3E0DA] pt-4">
+          <div className="mt-5 border-t border-line pt-4">
             <OverrideControls
               decisionId={t.decisionId}
               recommendedUnitId={primary.unitId}
@@ -171,7 +171,7 @@ export default async function PlannerPage() {
           </div>
 
           {reasonRows.length > 0 && (
-            <div className="mt-2 border-t border-[#E3E0DA] pt-4">
+            <div className="mt-2 border-t border-line pt-4">
               <h3 className="mb-1 text-sm font-semibold">Why this?</h3>
               <ReasonRows rows={reasonRows} />
             </div>
@@ -180,7 +180,7 @@ export default async function PlannerPage() {
       ) : (
         <section className={`${cardClass} p-5`}>
           <h2 className="font-semibold">You are clear for now</h2>
-          <p className="mt-1 max-w-md text-sm text-[#77736D]">
+          <p className="mt-1 max-w-md text-sm text-slate">
             No unit is active and no review is due. Pick your next unit from the syllabus, or answer a few questions to give the planner something to work with.
           </p>
           <Link href="/syllabus" className={`${pillDark} mt-4`}>
@@ -193,23 +193,23 @@ export default async function PlannerPage() {
         <section aria-labelledby="also">
           <div className="mb-3 flex items-center justify-between">
             <h3 id="also" className="font-semibold">Also worth doing</h3>
-            <span className="text-sm text-[#77736D]">{alternatives.length} more</span>
+            <span className="text-sm text-slate">{alternatives.length} more</span>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {alternatives.map((c) => {
               const prog = c.unitId ? t.unitProgress[c.unitId] : undefined;
               return (
-                <Link key={c.id} href={c.href} className={`${cardClass} p-5 hover:bg-[#F8F6F2]`}>
+                <Link key={c.id} href={c.href} className={`${cardClass} p-5 hover:bg-surface`}>
                   <SubjectBadge name={c.subjectName} code={c.targetType === "GLOBAL" ? (c.action === "TAKE_MOCK" ? "MK" : "FC") : undefined} />
                   <p className="mt-3 font-semibold">{c.conceptName ?? c.unitName ?? ACTION_LABEL[c.action]}</p>
-                  <p className="text-xs text-[#77736D]">{ACTION_LABEL[c.action]}{c.unitName && c.conceptName ? `, ${c.unitName}` : ""}</p>
+                  <p className="text-xs text-slate">{ACTION_LABEL[c.action]}{c.unitName && c.conceptName ? `, ${c.unitName}` : ""}</p>
                   {prog ? (
                     <div className="mt-3">
                       <ProgressBar value={prog.coverage} label={`${c.unitName} coverage`} />
-                      <p className="mt-1 text-xs text-[#77736D]">{pct(prog.coverage)} covered</p>
+                      <p className="mt-1 text-xs text-slate">{pct(prog.coverage)} covered</p>
                     </div>
                   ) : (
-                    <p className="mt-3 text-xs text-[#77736D]">{c.reasons[0] ? describeReason(c.reasons[0]) : ""}</p>
+                    <p className="mt-3 text-xs text-slate">{c.reasons[0] ? describeReason(c.reasons[0]) : ""}</p>
                   )}
                 </Link>
               );

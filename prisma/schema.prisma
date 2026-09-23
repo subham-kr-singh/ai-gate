@@ -1168,6 +1168,9 @@ model IngestedQuestionDraft {
   id               String      @id @default(cuid())
   /// Registry id of the adapter that produced this draft ("gopdfs", "examside").
   sourceAdapterId  String      @default("gopdfs")
+  /// Trust class of the source (§48). Stored, not enforced: every draft still
+  /// needs the same manual approval regardless of tier. The reviewer weighs it.
+  sourceReliability ResourceReliability @default(COMMUNITY)
   /// Nullable: web sources have no PDF artifact, only a deep link.
   sourcePdfUrl     String?
   sourceReleaseTag String
@@ -1195,6 +1198,7 @@ model IngestedQuestionDraft {
   @@index([status])
   @@index([sourceReleaseTag])
   @@index([sourceAdapterId])
+  @@index([sourceReliability])
   @@index([normalizedStatement])
 }
 

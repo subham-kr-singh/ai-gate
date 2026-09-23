@@ -83,9 +83,9 @@ export function FlashcardReviewer({ cards }: { cards: ReviewCard[] }) {
 
   if (!card) {
     return (
-      <div className="rounded-[24px] border border-[#E3E0DA] bg-white p-8">
+      <div className="rounded-[24px] border border-line bg-white p-8">
         <h2 className="text-lg font-semibold">{cards.length ? `You reviewed ${cards.length} ${cards.length === 1 ? "card" : "cards"}.` : "No reviews due right now."}</h2>
-        <p className="mt-2 max-w-md text-sm text-[#77736D]">
+        <p className="mt-2 max-w-md text-sm text-slate">
           {cards.length ? "Each one is scheduled for its next review. Come back when more are due." : "Add cards for formulas, traps and confusing pairs, and they will show up here when they are due."}
         </p>
         <Link href="/planner" className={`${pillDark} mt-5`}>
@@ -97,8 +97,8 @@ export function FlashcardReviewer({ cards }: { cards: ReviewCard[] }) {
 
   return (
     <section aria-label="Flashcard review" className="flex flex-col gap-5">
-      <div className="rounded-[24px] border border-[#E3E0DA] bg-white p-7 md:p-10">
-        <div className="flex items-center justify-between text-xs text-[#77736D]">
+      <div className="rounded-[24px] border border-line bg-white p-7 md:p-10">
+        <div className="flex items-center justify-between text-xs text-slate">
           <span>{KIND[card.kind] ?? card.kind}</span>
           <span className="tabular-nums">
             {i + 1} of {cards.length}
@@ -106,7 +106,7 @@ export function FlashcardReviewer({ cards }: { cards: ReviewCard[] }) {
         </div>
         <p className="mt-5 whitespace-pre-wrap text-xl font-semibold leading-snug">{card.front}</p>
         {shown ? (
-          <p className="mt-6 whitespace-pre-wrap border-t border-[#E3E0DA] pt-6 text-base leading-relaxed">{card.back}</p>
+          <p className="mt-6 whitespace-pre-wrap border-t border-line pt-6 text-base leading-relaxed">{card.back}</p>
         ) : (
           <button ref={revealRef} type="button" onClick={() => setShown(true)} className={`${pillDark} mt-8`}>
             Show answer
@@ -122,16 +122,16 @@ export function FlashcardReviewer({ cards }: { cards: ReviewCard[] }) {
               type="button"
               disabled={busy}
               onClick={() => grade(g.key)}
-              className={`flex flex-col items-center rounded-[20px] border border-[#E3E0DA] bg-white px-3 py-3 text-sm hover:bg-[#ECE9E3] ${focusRing}`}
+              className={`flex flex-col items-center rounded-[20px] border border-line bg-white px-3 py-3 text-sm hover:bg-control ${focusRing}`}
             >
               <span className="font-medium">{g.label}</span>
-              <span className="text-xs text-[#77736D]">{formatDistanceStrict(new Date(card.previews[g.key]), now)}</span>
+              <span className="text-xs text-slate">{formatDistanceStrict(new Date(card.previews[g.key]), now)}</span>
             </button>
           ))}
         </div>
       )}
-      <p className="text-xs text-[#77736D]">Space shows the answer. Keys 1 to 4 rate it.</p>
-      <p role="alert" className="min-h-4 text-xs text-[#D98E2B]">
+      <p className="text-xs text-slate">Space shows the answer. Keys 1 to 4 rate it.</p>
+      <p role="alert" className="min-h-4 text-xs text-amber">
         {error}
       </p>
     </section>

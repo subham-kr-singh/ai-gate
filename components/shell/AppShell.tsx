@@ -34,7 +34,7 @@ export function AppShell({ active = "today", initial = "G", aside, width = "wide
   const main = (
     <main
       className={`flex min-w-0 flex-col gap-7 px-5 pb-28 pt-5 md:px-10 md:pt-8 lg:pb-10 ${
-        aside ? "lg:border-r lg:border-[#E3E0DA]" : ""
+        aside ? "lg:border-r lg:border-line" : ""
       }`}
     >
       {width === "reading" ? <div className="mx-auto w-full max-w-[52rem]">{children}</div> : children}
@@ -42,7 +42,7 @@ export function AppShell({ active = "today", initial = "G", aside, width = "wide
   );
 
   return (
-    <div className={`grid min-h-screen grid-cols-1 bg-[#F8F6F2] text-[#111111] ${cols}`}>
+    <div className={`grid min-h-screen grid-cols-1 bg-surface text-ink ${cols}`}>
       <NavRail active={active} initial={initial} />
 
       <div className="flex min-w-0 flex-col">
@@ -51,7 +51,7 @@ export function AppShell({ active = "today", initial = "G", aside, width = "wide
       </div>
 
       {aside && (
-        <aside className="flex flex-col gap-6 border-t border-[#E3E0DA] px-5 pb-28 pt-6 md:px-10 lg:border-t-0 lg:px-6 lg:pb-10">
+        <aside className="flex flex-col gap-6 border-t border-line px-5 pb-28 pt-6 md:px-10 lg:border-t-0 lg:px-6 lg:pb-10">
           {aside}
         </aside>
       )}

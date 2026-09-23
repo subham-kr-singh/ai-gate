@@ -15,8 +15,8 @@ export function MasteryBar({ value, label, caption, tone = "ink" }: Props) {
     <div className="w-full">
       {label && (
         <div className="flex items-center justify-between text-sm">
-          <span className="text-[#111111]">{label}</span>
-          <span className="tabular-nums text-[#77736D]">{pct}%</span>
+          <span className="text-ink">{label}</span>
+          <span className="tabular-nums text-slate">{pct}%</span>
         </div>
       )}
       <div
@@ -27,9 +27,9 @@ export function MasteryBar({ value, label, caption, tone = "ink" }: Props) {
         aria-valuenow={pct}
         className={`${label ? "mt-1" : "mt-3"} h-1.5 w-full overflow-hidden rounded-full bg-black/10`}
       >
-        <div className={`animate-fill-w h-full rounded-full ${tone === "teal" ? "bg-[#0E8074]" : "bg-[#111111]"}`} style={{ width: `${pct}%` }} />
+        <div className={`animate-fill-w h-full rounded-full ${tone === "teal" ? "bg-teal" : "bg-ink"}`} style={{ width: `${pct}%` }} />
       </div>
-      {caption && <p className="mt-1 text-xs text-[#77736D]">{caption}</p>}
+      {caption && <p className="mt-1 text-xs text-slate">{caption}</p>}
     </div>
   );
 }

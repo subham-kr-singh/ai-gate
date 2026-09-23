@@ -12,7 +12,7 @@ export interface PlanSettings {
   maxExtensionDays: number;
 }
 
-const field = `h-10 w-full rounded-full bg-[#ECE9E3] px-4 text-sm outline-none ${focusRing}`;
+const field = `h-10 w-full rounded-full bg-control px-4 text-sm outline-none ${focusRing}`;
 
 export function PlanSettingsForm({ initial }: { initial: PlanSettings }) {
   const refreshSoon = useDelayedRefresh();
@@ -52,20 +52,20 @@ export function PlanSettingsForm({ initial }: { initial: PlanSettings }) {
 
   return (
     <form onSubmit={save} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-xs text-[#77736D]">
+      <label className="flex flex-col gap-1 text-xs text-slate">
         Exam date
         <input type="date" className={field} value={s.examDate ?? ""} onChange={(e) => setS({ ...s, examDate: e.target.value || null })} />
       </label>
-      <label className="flex flex-col gap-1 text-xs text-[#77736D]">
+      <label className="flex flex-col gap-1 text-xs text-slate">
         Preparation started on
         <input type="date" required className={field} value={s.prepStartDate} onChange={(e) => setS({ ...s, prepStartDate: e.target.value })} />
       </label>
       <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1 text-xs text-[#77736D]">
+        <label className="flex flex-col gap-1 text-xs text-slate">
           Days per unit (soft target)
           <input type="number" min={0.5} max={5} step={0.25} className={field} value={s.targetDaysPerUnit} onChange={(e) => setS({ ...s, targetDaysPerUnit: Number(e.target.value) })} />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-[#77736D]">
+        <label className="flex flex-col gap-1 text-xs text-slate">
           Extra days allowed
           <input type="number" min={0} max={7} step={0.5} className={field} value={s.maxExtensionDays} onChange={(e) => setS({ ...s, maxExtensionDays: Number(e.target.value) })} />
         </label>
@@ -73,7 +73,7 @@ export function PlanSettingsForm({ initial }: { initial: PlanSettings }) {
       <button type="submit" className={pillDark} disabled={busy}>
         Save plan
       </button>
-      <p role="status" aria-live="polite" className={`min-h-4 text-xs ${msg?.tone === "error" ? "text-[#D98E2B]" : "text-[#77736D]"}`}>
+      <p role="status" aria-live="polite" className={`min-h-4 text-xs ${msg?.tone === "error" ? "text-amber" : "text-slate"}`}>
         {msg?.text}
       </p>
     </form>

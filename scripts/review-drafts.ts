@@ -57,7 +57,11 @@ async function listDrafts(argv: string[]) {
     const cls = d.classification as { subjectCode?: string; confidence?: number } | null;
     const flags = d.validationErrors.length ? ` [${d.validationErrors.length} note(s)]` : "";
     const label = cls?.subjectCode ? ` ${cls.subjectCode}@${(cls.confidence ?? 0).toFixed(2)}` : " unresolved";
-    console.log(`${d.id}  ${d.status}${flags} ${(ex.type ?? "?").padEnd(3)}${label.padEnd(14)} ${(ex.statement ?? "").slice(0, 60).replace(/\n/g, " ")}`);
+    // Reliability is the reviewer's first signal about how much scrutiny a
+    // record needs, so it is shown on every row rather than only in --show.
+    console.log(
+      `${d.id}  ${d.status}${flags} ${(ex.type ?? "?").padEnd(3)}${d.sourceReliability.padEnd(12)}${d.sourceAdapterId.padEnd(10)}${label.padEnd(14)} ${(ex.statement ?? "").slice(0, 60).replace(/\n/g, " ")}`
+    );
   }
   console.log(`\n${drafts.length} draft(s) shown (of ${counts.reduce((a, c) => a + c._count._all, 0)} total).`);
 }
@@ -69,7 +73,26 @@ async function showDraft(id: string) {
   console.log(`status        : ${d.status}`);
   console.log(`release       : ${d.sourceReleaseTag}`);
   console.log(`source        : ${d.sourcePdfUrl}${d.sourceQuestionId ? ` (${d.sourceQuestionId})` : ""}`);
+  console.log(`adapter       : ${d.sourceAdapterId}`);
+  console.log(`reliability   : ${d.sourceReliability}`);
   console.log(`contentHash   : ${d.contentHash}`);
+  const corroborating = d.corroboratingSources as
+    | { adapterId?: string; sourceUrl?: string; similarity?: number; note?: string }[]
+    | null;
+  if (corroborating?.length) {
+    console.log("corroborated  :");
+    for (const c of corroborating) {
+      console.log(
+        `  - ${c.adapterId ?? "?"} (similarity ${c.similarity?.toFixed?.(2) ?? "?"}) ${c.sourceUrl ?? ""}`
+      );
+      if (c.note) console.log(`      ${c.note}`);
+    }
+  }
+  const provenance = d.provenance as { url?: string; kind?: string }[] | null;
+  if (provenance?.length) {
+    console.log("provenance    :");
+    for (const p of provenance) console.log(`  - [${p.kind ?? "?"}] ${p.url ?? ""}`);
+  }
   console.log(`validation    : ${d.validationErrors.length ? "\n  - " + d.validationErrors.join("\n  - ") : "none"}`);
   console.log(`\nextracted     :\n${JSON.stringify(d.extracted, null, 2)}`);
   console.log(`\nraw block text:\n${d.rawBlockText.slice(0, 2000)}`);

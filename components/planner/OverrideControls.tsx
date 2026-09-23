@@ -10,7 +10,7 @@ interface UnitOption {
   subjectName: string;
 }
 
-const field = `h-10 w-full rounded-full bg-[#ECE9E3] px-4 text-sm outline-none placeholder:text-[#9B968E] ${focusRing}`;
+const field = `h-10 w-full rounded-full bg-control px-4 text-sm outline-none placeholder:text-slate-light ${focusRing}`;
 
 export function OverrideControls({
   decisionId,
@@ -75,8 +75,8 @@ export function OverrideControls({
       </div>
 
       {open && (
-        <div className="flex flex-col gap-3 rounded-[20px] border border-[#E3E0DA] p-4">
-          <label className="flex flex-col gap-1 text-xs text-[#77736D]">
+        <div className="flex flex-col gap-3 rounded-[20px] border border-line p-4">
+          <label className="flex flex-col gap-1 text-xs text-slate">
             Unit to work on instead
             <select className={field} value={chosen} onChange={(e) => setChosen(e.target.value)}>
               <option value="">Choose a unit</option>
@@ -91,7 +91,7 @@ export function OverrideControls({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs text-[#77736D]">
+          <label className="flex flex-col gap-1 text-xs text-slate">
             Why (optional)
             <input className={field} value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} placeholder="I want to finish this first" />
           </label>
@@ -114,7 +114,7 @@ export function OverrideControls({
         </div>
       )}
 
-      <p role="status" aria-live="polite" className={`min-h-4 text-xs ${message?.tone === "error" ? "text-[#D98E2B]" : "text-[#77736D]"}`}>
+      <p role="status" aria-live="polite" className={`min-h-4 text-xs ${message?.tone === "error" ? "text-amber" : "text-slate"}`}>
         {message?.text}
       </p>
     </div>

@@ -114,7 +114,9 @@ export interface AIUsageRecord {
     | "mistake_classification"
     | "explanation"
     | "hint"
-    | "eval";
+    | "eval"
+    | "ingestion_extraction"
+    | "ingestion_classification";
   requestCount: number;
   inputTokens: number | null;
   outputTokens: number | null;

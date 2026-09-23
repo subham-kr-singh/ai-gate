@@ -7,6 +7,7 @@ import { QuestionCard, type QuestionCardData } from "@/components/test/QuestionC
 import { Palette, type PaletteStatus } from "@/components/test/Palette";
 import { Timer } from "@/components/test/Timer";
 import { SubmitConfirm } from "@/components/test/SubmitConfirm";
+import { apiFetch } from "@/lib/api-fetch";
 import { Button } from "@/components/ui/Button";
 
 interface TestQuestionRow {
@@ -35,23 +36,40 @@ export default function TestPage({ params }: { params: { testId: string } }) {
   const [marked, setMarked] = useState<Record<string, boolean>>({});
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const seqRef = useRef<Record<string, number>>({});
+  const submittedRedirect = useRef(false);
+
+  // A test that was already submitted (reopened from history, or a duplicate
+  // tab) belongs on its result page. This runs in an effect rather than in the
+  // render body: calling `router.replace` during render is a side effect that
+  // React may run twice, and it also skipped the hooks declared below.
+  useEffect(() => {
+    if (test?.status === "SUBMITTED" && !submittedRedirect.current) {
+      submittedRedirect.current = true;
+      router.replace(`/tests/${params.testId}/result`);
+    }
+  }, [test?.status, params.testId, router]);
 
   useEffect(() => {
-    fetch(`/api/tests/${params.testId}`)
-      .then((r) => r.json())
-      .then((data: TestDetail) => {
-        setTest(data);
-        const initialAnswers: Record<string, string | string[] | null> = {};
-        const initialMarked: Record<string, boolean> = {};
-        for (const [qid, entry] of Object.entries(data.draftAnswers ?? {})) {
-          initialAnswers[qid] = entry.selectedAnswer;
-          initialMarked[qid] = !!entry.markedForReview;
-          seqRef.current[qid] = entry.seq;
-        }
-        setAnswers(initialAnswers);
-        setMarked(initialMarked);
-      });
+    apiFetch<TestDetail>(`/api/tests/${params.testId}`).then((res) => {
+      if (!res.ok || !res.body) {
+        setLoadError(res.error ?? "Could not load this test.");
+        return;
+      }
+      const data = res.body;
+      setTest(data);
+      const initialAnswers: Record<string, string | string[] | null> = {};
+      const initialMarked: Record<string, boolean> = {};
+      for (const [qid, entry] of Object.entries(data.draftAnswers ?? {})) {
+        initialAnswers[qid] = entry.selectedAnswer;
+        initialMarked[qid] = !!entry.markedForReview;
+        seqRef.current[qid] = entry.seq;
+      }
+      setAnswers(initialAnswers);
+      setMarked(initialMarked);
+    });
   }, [params.testId]);
 
   const current = test?.testQuestions[index];
@@ -105,27 +123,54 @@ export default function TestPage({ params }: { params: { testId: string } }) {
   const answeredCount = Object.values(answers).filter((a) => a !== null && a !== undefined).length;
 
   async function handleSubmit() {
+    if (submitting) return;
     setSubmitting(true);
-    const res = await fetch(`/api/tests/${params.testId}/submit`, { method: "POST" });
-    setSubmitting(false);
+    setSubmitError(null);
+    const res = await apiFetch(`/api/tests/${params.testId}/submit`, { method: "POST" });
     if (res.ok) {
+      // Kept pending deliberately: the result route is the next screen, so
+      // re-enabling the button here would only flash an active "Submitting…".
       router.push(`/tests/${params.testId}/result`);
+      return;
     }
+    // The attempt is still open on the server, so the confirm dialog is left
+    // open with the reason and the button live: the student can retry without
+    // losing answers. A silent failure at this point is the worst-case bug in
+    // the app, because the timer keeps running while nothing appears to happen.
+    setSubmitting(false);
+    setSubmitError(res.error ?? "Could not submit. Check your connection and try again.");
+  }
+
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-4xl p-5 md:p-10">
+        <p role="alert" className="text-sm text-amber">
+          {loadError}
+        </p>
+        <Link
+          href="/tests"
+          className="mt-3 inline-block text-sm text-slate underline underline-offset-2"
+        >
+          ← Back to test history
+        </Link>
+      </div>
+    );
   }
 
   if (!test) {
     return <div className="max-w-4xl mx-auto p-10 text-sm text-slate">Loading…</div>;
   }
 
+  // The redirect effect above owns this transition; render nothing for the
+  // frame(s) before it runs rather than flashing the exam UI.
   if (test.status === "SUBMITTED") {
-    router.replace(`/tests/${params.testId}/result`);
     return null;
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F6F2]">
-      <header className="flex items-center justify-between border-b border-[#E3E0DA] px-5 py-3 md:px-10">
-        <Link href="/tests" className="text-sm text-[#77736D] underline-offset-2 hover:underline">
+    <div className="min-h-screen bg-surface">
+      <header className="flex items-center justify-between border-b border-line px-5 py-3 md:px-10">
+        <Link href="/tests" className="text-sm text-slate underline-offset-2 hover:underline">
           ← Test history
         </Link>
         <Timer deadlineAt={test.deadlineAt} onExpire={handleSubmit} />
@@ -182,6 +227,8 @@ export default function TestPage({ params }: { params: { testId: string } }) {
           <SubmitConfirm
             answeredCount={answeredCount}
             totalCount={test.testQuestions.length}
+            submitting={submitting}
+            error={submitError}
             onCancel={() => setShowConfirm(false)}
             onConfirm={handleSubmit}
           />

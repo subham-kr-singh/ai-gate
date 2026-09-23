@@ -44,41 +44,41 @@ function Instructions({ snapshot }: { snapshot: MockSessionSnapshot }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F6F2] px-6 py-12 md:px-10">
+    <div className="min-h-screen bg-surface px-6 py-12 md:px-10">
       <div className="mx-auto flex max-w-2xl flex-col gap-8">
         <div>
-          <Link href="/mocks" className="text-sm text-[#77736D] underline-offset-2 hover:underline">
+          <Link href="/mocks" className="text-sm text-slate underline-offset-2 hover:underline">
             Back to mocks
           </Link>
-          <h1 className="mt-4 text-2xl font-semibold text-[#111111]">{snapshot.title}</h1>
-          <p className="mt-1 text-sm text-[#77736D]">
+          <h1 className="mt-4 text-2xl font-semibold text-ink">{snapshot.title}</h1>
+          <p className="mt-1 text-sm text-slate">
             {duration(snapshot.durationSec)} · {totalQ} questions · {totalMarks} marks
           </p>
         </div>
 
-        <ul className="flex flex-col divide-y divide-[#E3E0DA] rounded-[20px] border border-[#E3E0DA]">
+        <ul className="flex flex-col divide-y divide-line rounded-[20px] border border-line">
           {snapshot.sections.map((s) => (
             <li key={s.key} className="flex items-center justify-between p-5 text-sm">
-              <span className="font-medium text-[#111111]">{s.label}</span>
-              <span className="text-[#77736D]">
+              <span className="font-medium text-ink">{s.label}</span>
+              <span className="text-slate">
                 {s.count} questions · {s.maxMarks} marks
               </span>
             </li>
           ))}
         </ul>
 
-        <section className="rounded-[20px] border border-[#E3E0DA] p-5">
-          <h2 className="mb-3 font-semibold text-[#111111]">Marking</h2>
-          <ul className="flex flex-col gap-2 text-sm text-[#3a3a3a]">
+        <section className="rounded-[20px] border border-line p-5">
+          <h2 className="mb-3 font-semibold text-ink">Marking</h2>
+          <ul className="flex flex-col gap-2 text-sm text-body-muted">
             {snapshot.markingRules.map((r) => (
               <li key={r}>{r}</li>
             ))}
           </ul>
         </section>
 
-        <section className="rounded-[20px] border border-[#E3E0DA] p-5">
-          <h2 className="mb-3 font-semibold text-[#111111]">How the clock works</h2>
-          <ul className="flex flex-col gap-2 text-sm text-[#3a3a3a]">
+        <section className="rounded-[20px] border border-line p-5">
+          <h2 className="mb-3 font-semibold text-ink">How the clock works</h2>
+          <ul className="flex flex-col gap-2 text-sm text-body-muted">
             <li>The timer starts when you press Begin and runs on the server, not in this tab.</li>
             <li>If your phone locks or you refresh, your answers and the true remaining time are restored.</li>
             <li>Answers save as you go. When time is up, the mock submits itself.</li>
@@ -87,7 +87,7 @@ function Instructions({ snapshot }: { snapshot: MockSessionSnapshot }) {
         </section>
 
         {error && (
-          <p role="alert" className="rounded-[20px] bg-[#F4DEB4] p-4 text-sm text-[#111111]">
+          <p role="alert" className="rounded-[20px] bg-butter p-4 text-sm text-ink">
             {error.message}{' '}
             {error.activeId && (
               <Link href={`/mocks/${error.activeId}`} className="font-medium underline">
@@ -101,7 +101,7 @@ function Instructions({ snapshot }: { snapshot: MockSessionSnapshot }) {
           type="button"
           onClick={begin}
           disabled={busy}
-          className="h-12 rounded-full bg-[#111111] text-sm font-medium text-white disabled:opacity-60"
+          className="h-12 rounded-full bg-ink text-sm font-medium text-white disabled:opacity-60"
         >
           {busy ? 'Starting…' : 'Begin mock'}
         </button>
@@ -159,11 +159,11 @@ function Exam({ snapshot }: { snapshot: MockSessionSnapshot }) {
   );
 
   return (
-    <div className="grid min-h-screen grid-cols-1 bg-[#F8F6F2] lg:grid-cols-[minmax(0,1fr)_320px]">
-      <main className="flex min-h-screen flex-col border-[#E3E0DA] lg:border-r">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E3E0DA] px-6 py-4 md:px-10">
+    <div className="grid min-h-screen grid-cols-1 bg-surface lg:grid-cols-[minmax(0,1fr)_320px]">
+      <main className="flex min-h-screen flex-col border-line lg:border-r">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4 md:px-10">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-base font-semibold text-[#111111]">{snapshot.title}</h1>
+            <h1 className="text-base font-semibold text-ink">{snapshot.title}</h1>
             <nav aria-label="Sections" className="flex gap-2">
               {snapshot.sections.map((sec) => (
                 <button
@@ -172,7 +172,7 @@ function Exam({ snapshot }: { snapshot: MockSessionSnapshot }) {
                   onClick={() => s.goTo(sec.firstPosition - 1)}
                   aria-current={sec.key === q.section ? 'true' : undefined}
                   className={`h-9 rounded-full px-4 text-sm ${
-                    sec.key === q.section ? 'bg-[#111111] text-white' : 'bg-[#ECE9E3] text-[#222222]'
+                    sec.key === q.section ? 'bg-ink text-white' : 'bg-control text-ink-soft'
                   }`}
                 >
                   {sec.label}
@@ -204,12 +204,12 @@ function Exam({ snapshot }: { snapshot: MockSessionSnapshot }) {
           />
         </div>
 
-        <footer className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-[#E3E0DA] bg-[#F8F6F2] px-6 py-4 md:px-10">
+        <footer className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-line bg-surface px-6 py-4 md:px-10">
           <button
             type="button"
             onClick={s.prev}
             disabled={locked || s.index === 0}
-            className="inline-flex h-10 items-center gap-1 rounded-full bg-[#ECE9E3] pl-3 pr-4 text-sm text-[#222222] disabled:opacity-50"
+            className="inline-flex h-10 items-center gap-1 rounded-full bg-control pl-3 pr-4 text-sm text-ink-soft disabled:opacity-50"
           >
             <ChevronLeft size={16} aria-hidden /> Previous
           </button>
@@ -217,11 +217,11 @@ function Exam({ snapshot }: { snapshot: MockSessionSnapshot }) {
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
-            className="inline-flex h-10 items-center gap-2 rounded-full bg-[#ECE9E3] px-4 text-sm text-[#222222] lg:hidden"
+            className="inline-flex h-10 items-center gap-2 rounded-full bg-control px-4 text-sm text-ink-soft lg:hidden"
           >
             <LayoutGrid size={15} aria-hidden /> {s.index + 1} / {total}
           </button>
-          <span className="hidden text-sm text-[#77736D] lg:inline">
+          <span className="hidden text-sm text-slate lg:inline">
             {s.index + 1} of {total}
           </span>
 
@@ -229,7 +229,7 @@ function Exam({ snapshot }: { snapshot: MockSessionSnapshot }) {
             type="button"
             onClick={s.next}
             disabled={locked || s.index === total - 1}
-            className="inline-flex h-10 items-center gap-1 rounded-full bg-[#111111] pl-4 pr-3 text-sm text-white disabled:opacity-50"
+            className="inline-flex h-10 items-center gap-1 rounded-full bg-ink pl-4 pr-3 text-sm text-white disabled:opacity-50"
           >
             Next <ChevronRight size={16} aria-hidden />
           </button>
@@ -242,7 +242,7 @@ function Exam({ snapshot }: { snapshot: MockSessionSnapshot }) {
           type="button"
           onClick={() => setSubmitOpen(true)}
           disabled={locked}
-          className="h-10 rounded-full bg-[#111111] text-sm text-white disabled:opacity-60"
+          className="h-10 rounded-full bg-ink text-sm text-white disabled:opacity-60"
         >
           Submit mock
         </button>
@@ -250,10 +250,10 @@ function Exam({ snapshot }: { snapshot: MockSessionSnapshot }) {
 
       {paletteOpen && (
         <div role="dialog" aria-modal="true" aria-label="Question palette" className="fixed inset-0 z-40 flex items-end bg-black/40 lg:hidden">
-          <div className="max-h-[85vh] w-full overflow-y-auto rounded-t-[24px] border-t border-[#E3E0DA] bg-[#F8F6F2] p-6">
+          <div className="max-h-[85vh] w-full overflow-y-auto rounded-t-[24px] border-t border-line bg-surface p-6">
             <div className="mb-4 flex items-center justify-between">
-              <p className="font-semibold text-[#111111]">Questions</p>
-              <button type="button" onClick={() => setPaletteOpen(false)} aria-label="Close palette" className="flex h-9 w-9 items-center justify-center rounded-full bg-[#ECE9E3]">
+              <p className="font-semibold text-ink">Questions</p>
+              <button type="button" onClick={() => setPaletteOpen(false)} aria-label="Close palette" className="flex h-9 w-9 items-center justify-center rounded-full bg-control">
                 <X size={16} aria-hidden />
               </button>
             </div>
@@ -265,7 +265,7 @@ function Exam({ snapshot }: { snapshot: MockSessionSnapshot }) {
                 setSubmitOpen(true);
               }}
               disabled={locked}
-              className="mt-6 h-10 w-full rounded-full bg-[#111111] text-sm text-white disabled:opacity-60"
+              className="mt-6 h-10 w-full rounded-full bg-ink text-sm text-white disabled:opacity-60"
             >
               Submit mock
             </button>
@@ -277,37 +277,37 @@ function Exam({ snapshot }: { snapshot: MockSessionSnapshot }) {
         ref={dialogRef}
         onClose={() => setSubmitOpen(false)}
         aria-labelledby="submit-h"
-        className="w-[min(92vw,32rem)] rounded-[24px] border border-[#E3E0DA] bg-[#F8F6F2] p-0 backdrop:bg-black/40"
+        className="w-[min(92vw,32rem)] rounded-[24px] border border-line bg-surface p-0 backdrop:bg-black/40"
       >
         <div className="flex flex-col gap-5 p-6">
-          <h2 id="submit-h" className="text-lg font-semibold text-[#111111]">
+          <h2 id="submit-h" className="text-lg font-semibold text-ink">
             Submit this mock?
           </h2>
-          <ul className="flex flex-col divide-y divide-[#E3E0DA] rounded-[20px] border border-[#E3E0DA] bg-white text-sm">
+          <ul className="flex flex-col divide-y divide-line rounded-[20px] border border-line bg-white text-sm">
             {summary.map((r) => (
               <li key={r.sec.key} className="p-4">
-                <p className="font-medium text-[#111111]">{r.sec.label}</p>
-                <p className="mt-1 text-[#3a3a3a]">
+                <p className="font-medium text-ink">{r.sec.label}</p>
+                <p className="mt-1 text-body-muted">
                   {r.answered} answered · {r.notAnswered} not answered · {r.notVisited} not visited · {r.marked} marked for review
                 </p>
               </li>
             ))}
           </ul>
-          <p className="text-sm text-[#77736D]">You cannot change answers after submitting.</p>
+          <p className="text-sm text-slate">You cannot change answers after submitting.</p>
           {s.phase === 'submitError' && (
-            <p role="alert" className="rounded-[20px] bg-[#F4DEB4] p-3 text-sm text-[#111111]">
+            <p role="alert" className="rounded-[20px] bg-butter p-3 text-sm text-ink">
               Could not reach the server. Your answers are saved on this device. Try again.
             </p>
           )}
           <div className="flex gap-2">
-            <button type="button" onClick={() => setSubmitOpen(false)} className="h-10 flex-1 rounded-full bg-[#ECE9E3] text-sm text-[#222222]">
+            <button type="button" onClick={() => setSubmitOpen(false)} className="h-10 flex-1 rounded-full bg-control text-sm text-ink-soft">
               Keep working
             </button>
             <button
               type="button"
               onClick={() => void s.submit('USER')}
               disabled={s.phase === 'submitting'}
-              className="h-10 flex-1 rounded-full bg-[#111111] text-sm text-white disabled:opacity-60"
+              className="h-10 flex-1 rounded-full bg-ink text-sm text-white disabled:opacity-60"
             >
               {s.phase === 'submitting' ? 'Submitting…' : 'Submit mock'}
             </button>
@@ -317,11 +317,11 @@ function Exam({ snapshot }: { snapshot: MockSessionSnapshot }) {
 
       {(s.phase === 'expired' || s.phase === 'done' || (s.phase === 'submitError' && !submitOpen)) && (
         <div role="alertdialog" aria-modal="true" aria-labelledby="timeup-h" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6">
-          <div className="w-full max-w-md rounded-[24px] border border-[#E3E0DA] bg-[#F8F6F2] p-6">
-            <h2 id="timeup-h" className="text-lg font-semibold text-[#111111]">
+          <div className="w-full max-w-md rounded-[24px] border border-line bg-surface p-6">
+            <h2 id="timeup-h" className="text-lg font-semibold text-ink">
               {s.phase === 'done' ? 'Submitted' : "Time's up"}
             </h2>
-            <p className="mt-2 text-sm text-[#3a3a3a]">
+            <p className="mt-2 text-sm text-body-muted">
               {s.phase === 'submitError'
                 ? 'We could not submit yet. Your answers are saved. If this persists, the server will submit the mock for you.'
                 : s.phase === 'done'
@@ -329,7 +329,7 @@ function Exam({ snapshot }: { snapshot: MockSessionSnapshot }) {
                   : 'Submitting your answers…'}
             </p>
             {s.phase === 'submitError' && (
-              <button type="button" onClick={() => void s.submit('TIMER')} className="mt-4 h-10 w-full rounded-full bg-[#111111] text-sm text-white">
+              <button type="button" onClick={() => void s.submit('TIMER')} className="mt-4 h-10 w-full rounded-full bg-ink text-sm text-white">
                 Try again
               </button>
             )}
@@ -346,7 +346,7 @@ function SaveStatus({ state, pending }: { state: SaveState; pending: number }) {
     <p
       role="status"
       aria-live="polite"
-      className={`hidden items-center gap-1.5 text-xs sm:flex ${bad ? 'rounded-full bg-[#D98E2B] px-3 py-1.5 font-medium text-[#111111]' : 'text-[#77736D]'}`}
+      className={`hidden items-center gap-1.5 text-xs sm:flex ${bad ? 'rounded-full bg-amber px-3 py-1.5 font-medium text-ink' : 'text-slate'}`}
     >
       {bad ? <WifiOff size={13} aria-hidden /> : state === 'saved' ? <Check size={13} aria-hidden /> : null}
       {state === 'saved' && 'Saved'}

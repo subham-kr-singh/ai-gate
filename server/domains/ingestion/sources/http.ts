@@ -196,3 +196,67 @@ export async function fetchJson<T>(url: string, body: unknown, throttleMs = 1500
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
   return (await res.json()) as T;
 }
+
+
+/** Where downloaded PDFs live, keyed by a hash of their URL. */
+const PDF_CACHE_DIR = path.join(process.cwd(), ".cache", "ingest-pdfs");
+
+export interface DownloadedPdf {
+  filePath: string;
+  /** sha256 of the bytes, recorded as provenance. */
+  artifactHash: string;
+  /** Read from disk rather than the network. */
+  fromCache: boolean;
+}
+
+/**
+ * Downloads a PDF for ingestion, under the same robots.txt and throttling
+ * rules as `fetchText`.
+ *
+ * This exists rather than reusing `fetcher.ts` (which serves the GO GitHub
+ * releases) because PDFs are the one artifact whose provenance must be exact:
+ * the archive here is a government exam site, and we would rather hit it once
+ * and keep a hash than re-download on every run. A cached file is returned
+ * untouched, so a re-run adds no load to the source.
+ */
+export async function downloadPdf(
+  url: string,
+  opts: { throttleMs?: number; force?: boolean } = {}
+): Promise<DownloadedPdf> {
+  const h = createHash("sha256").update(url).digest("hex").slice(0, 24);
+  const filePath = path.join(PDF_CACHE_DIR, `${h}.pdf`);
+  const hashPath = `${filePath}.sha256`;
+
+  if (!opts.force && existsSync(filePath) && existsSync(hashPath)) {
+    const artifactHash = readFileSync(hashPath, "utf-8").trim();
+    const size = readFileSync(filePath).byteLength;
+    // A zero-byte cache file means a previous run wrote before a failure;
+    // re-fetch rather than feed an empty buffer to the PDF parser.
+    if (size > 0 && artifactHash) return { filePath, artifactHash, fromCache: true };
+  }
+
+  const parsed = new URL(url);
+  const rules = await loadRobots(parsed.origin);
+  if (!isAllowed(rules, parsed.pathname)) {
+    throw new Error(
+      `robots.txt disallows ${parsed.pathname} on ${parsed.origin}. Refusing to fetch.`
+    );
+  }
+  await throttle(parsed.origin, opts.throttleMs ?? 1500, rules);
+
+  const res = await fetch(url, {
+    headers: { "User-Agent": USER_AGENT, Accept: "application/pdf,*/*" },
+    redirect: "follow",
+    signal: AbortSignal.timeout(120_000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.byteLength === 0) throw new Error(`Empty response body for ${url}`);
+  const artifactHash = createHash("sha256").update(buf).digest("hex");
+
+  mkdirSync(PDF_CACHE_DIR, { recursive: true });
+  writeFileSync(filePath, buf);
+  writeFileSync(hashPath, artifactHash);
+  return { filePath, artifactHash, fromCache: false };
+}

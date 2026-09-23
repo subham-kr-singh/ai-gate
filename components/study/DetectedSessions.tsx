@@ -76,7 +76,7 @@ export function DetectedSessions() {
 
   if (error) {
     return (
-      <div className="rounded-[16px] border border-[#D98E2B] bg-[#F4DEB4]/40 p-4 text-sm text-[#111111]">
+      <div className="rounded-[16px] border border-amber bg-butter/40 p-4 text-sm text-ink">
         {error}
       </div>
     );
@@ -86,7 +86,7 @@ export function DetectedSessions() {
     return (
       <div className="flex flex-col gap-3" aria-busy="true">
         {[0, 1].map((i) => (
-          <div key={i} className="h-28 animate-pulse rounded-[20px] bg-[#ECE9E3]" />
+          <div key={i} className="h-28 animate-pulse rounded-[20px] bg-control" />
         ))}
       </div>
     );
@@ -95,8 +95,8 @@ export function DetectedSessions() {
   if (!sessions.length) {
     return (
       <div className={ui.card + " p-5"}>
-        <p className="text-sm font-semibold text-[#111111]">No sessions recorded yet</p>
-        <p className="mt-1 text-sm text-[#3a3a3a]">
+        <p className="text-sm font-semibold text-ink">No sessions recorded yet</p>
+        <p className="mt-1 text-sm text-body-muted">
           Work you do in Practice, Tests and Mocks shows up here automatically —
           nothing to log. Anything you did elsewhere, add manually.
         </p>
@@ -123,23 +123,23 @@ function SessionCard({ session }: { session: DetectedSession }) {
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="flex items-center gap-2">
           {session.subjectCode && (
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium text-[#111111] ${ui.tile.sky}`}>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium text-ink ${ui.tile.sky}`}>
               {session.subjectCode}
             </span>
           )}
-          <h3 className="text-base font-semibold text-[#111111]">{session.unitName}</h3>
+          <h3 className="text-base font-semibold text-ink">{session.unitName}</h3>
           {session.isPyq && (
-            <span className="rounded-full bg-[#D0CCF4] px-2 py-0.5 text-xs text-[#111111]">PYQ</span>
+            <span className="rounded-full bg-lavender px-2 py-0.5 text-xs text-ink">PYQ</span>
           )}
         </div>
-        <span className="text-xs text-[#77736D]">{dayLabel(session.day)}</span>
+        <span className="text-xs text-slate">{dayLabel(session.day)}</span>
       </header>
 
-      <p className="mt-3 text-sm text-[#3a3a3a]">
-        <span className="text-[#111111]">
+      <p className="mt-3 text-sm text-body-muted">
+        <span className="text-ink">
           {session.questionsCorrect}/{session.questionsAttempted} correct
         </span>{" "}
-        <span className={session.accuracy >= 0.6 ? "text-[#0E8074]" : "text-[#D98E2B]"}>
+        <span className={session.accuracy >= 0.6 ? "text-teal" : "text-amber"}>
           ({pct(session.accuracy)})
         </span>
         {sourceLine(session.sources) && <> · {sourceLine(session.sources)}</>}
@@ -147,12 +147,12 @@ function SessionCard({ session }: { session: DetectedSession }) {
 
       {session.weakConcepts.length > 0 && (
         <div className="mt-3">
-          <p className="text-xs font-semibold text-[#77736D]">Needs attention</p>
+          <p className="text-xs font-semibold text-slate">Needs attention</p>
           <ul className="mt-1 flex flex-col gap-1">
             {session.weakConcepts.slice(0, 4).map((c) => (
               <li key={c.conceptId} className="flex items-baseline justify-between gap-3 text-sm">
-                <span className="text-[#3a3a3a]">{c.name}</span>
-                <span className="text-[#D98E2B]">
+                <span className="text-body-muted">{c.name}</span>
+                <span className="text-amber">
                   {c.correct}/{c.attempted}
                 </span>
               </li>
@@ -161,8 +161,8 @@ function SessionCard({ session }: { session: DetectedSession }) {
         </div>
       )}
 
-      <div className="mt-4 border-t border-[#E3E0DA] pt-3">
-        <p className="text-xs text-[#77736D]">How did that feel?</p>
+      <div className="mt-4 border-t border-line pt-3">
+        <p className="text-xs text-slate">How did that feel?</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {(["high", "medium", "low"] as const).map((c) => (
             <button
@@ -181,19 +181,19 @@ function SessionCard({ session }: { session: DetectedSession }) {
         </div>
 
         {confidence === "high" && (
-          <p className="mt-3 text-sm text-[#0E8074]">
+          <p className="mt-3 text-sm text-teal">
             Good. This session is already counted — nothing else to do here.
           </p>
         )}
         {confidence === "medium" && (
-          <p className="mt-3 text-sm text-[#3a3a3a]">
+          <p className="mt-3 text-sm text-body-muted">
             Okay. Your plan stays as it is; if the next session looks the same,
             revision intensity is worth revisiting with the tutor.
           </p>
         )}
         {confidence === "low" && (
-          <div className="mt-3 rounded-[16px] border border-[#D98E2B] bg-[#F4DEB4]/40 p-3">
-            <p className="text-sm text-[#111111]">
+          <div className="mt-3 rounded-[16px] border border-amber bg-butter/40 p-3">
+            <p className="text-sm text-ink">
               Talk it through with the tutor before changing anything. It reads
               this session&apos;s numbers, discusses what went wrong, and proposes
               either more time on this unit or taking it off the plan — you

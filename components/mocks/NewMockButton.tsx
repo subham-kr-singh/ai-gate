@@ -42,16 +42,16 @@ export function NewMockButton({ blueprintKey, disabled }: { blueprintKey: string
 
   return (
     <div className="flex flex-col gap-3">
-      <label className="flex items-start gap-3 text-sm text-[#3a3a3a]">
+      <label className="flex items-start gap-3 text-sm text-body-muted">
         <input
           type="checkbox"
           checked={preferUnseen}
           onChange={(e) => setPreferUnseen(e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-[#111111]"
+          className="mt-0.5 h-4 w-4 accent-ink"
         />
         <span>
           Prefer questions I have not seen
-          <span className="block text-xs text-[#77736D]">
+          <span className="block text-xs text-slate">
             Unseen questions give independent evidence of where you stand.
           </span>
         </span>
@@ -60,12 +60,12 @@ export function NewMockButton({ blueprintKey, disabled }: { blueprintKey: string
         type="button"
         onClick={create}
         disabled={busy || disabled}
-        className="h-10 rounded-full bg-[#111111] text-sm text-white disabled:opacity-60"
+        className="h-10 rounded-full bg-ink text-sm text-white disabled:opacity-60"
       >
         {busy ? 'Building your paper…' : 'Build a new mock'}
       </button>
       {error && (
-        <p role="alert" className="rounded-[20px] bg-[#F4DEB4] p-3 text-sm text-[#111111]">
+        <p role="alert" className="rounded-[20px] bg-butter p-3 text-sm text-ink">
           {error}
         </p>
       )}

@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The DESIGN.md palette as CSS custom properties, for the small amount of CSS
+   that Tailwind classes cannot express cleanly (styled-jsx blocks, complex
+   box-shadows). Values mirror tailwind.config.ts. */
+:root {
+  --surface: #f8f6f2;
+  --ink: #111111;
+  --ink-soft: #222222;
+  --body-muted: #3a3a3a;
+  --slate: #77736d;
+  --slate-light: #9b968e;
+  --line: #e3e0da;
+  --control: #ece9e3;
+  --teal: #0e8074;
+  --amber: #d98e2b;
+  --butter: #f4deb4;
+  --sky: #c7e3f5;
+  --lavender: #d0ccf4;
+  --coral: #f4c1c4;
+  --mint: #bdebd9;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -14,6 +35,19 @@
 }
 
 :focus-visible {
-  outline: 2px solid #0E8074;
+  outline: 2px solid var(--teal);
   outline-offset: 2px;
+}
+
+/* Used by the activity chart, which scrolls horizontally on a narrow screen.
+   Hiding the bar keeps the row-height predictable without disabling the
+   scroll itself. */
+@layer utilities {
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }

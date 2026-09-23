@@ -12,7 +12,14 @@ export interface ConceptMapping {
   /** 0..1 — the score of the winning match. */
   confidence: number;
   /** How the match was made, for the review UI. */
-  matchedOn: "section-title" | "chapter-title" | "tag" | "none";
+  matchedOn:
+    | "section-title"
+    | "chapter-title"
+    | "tag"
+    | "none"
+    /** A model proposed the name and the deterministic matcher confirmed it
+     * exists in the syllabus. Never treated as authoritative. */
+    | "assisted-exact";
   /** Human-readable reason, shown to the reviewer. */
   rationale: string;
 }
@@ -187,6 +194,27 @@ export interface MappingQuery {
  * Anything below MIN_CONFIDENCE returns null so the caller keeps the draft
  * unresolved rather than filing a question under a wrong topic.
  */
+/**
+ * Splits a `SUBJECT_CODE:name` catalog entry. Returns null when there is no
+ * usable prefix or no name, so a model that returns prose, an empty string, or
+ * a bare unit name resolves to nothing rather than to a wrong subject.
+ *
+ * Only the first colon is treated as the separator: syllabus names contain
+ * colons of their own (e.g. "File Systems: allocation").
+ */
+export function parseCatalogLabel(label: string | null | undefined): {
+  code: string;
+  name: string;
+} | null {
+  if (!label) return null;
+  const sep = label.indexOf(":");
+  if (sep <= 0) return null;
+  const code = label.slice(0, sep).trim().toUpperCase();
+  const name = label.slice(sep + 1).trim();
+  if (!code || !name) return null;
+  return { code, name };
+}
+
 export function createConceptMapper(syllabusVersionId: string) {
   let candidates: Candidate[] | null = null;
 
@@ -217,6 +245,13 @@ export function createConceptMapper(syllabusVersionId: string) {
   }
 
   const MIN_CONFIDENCE = 0.34;
+
+  /** The subject row for a code, or null when the code is not in the syllabus. */
+  async function subjectByCode(code: string | null) {
+    if (!code) return null;
+    const rows = await syllabusRepo.findSyllabusTreeRows(syllabusVersionId);
+    return rows.find((s) => s.code === code) ?? null;
+  }
 
   /**
    * The source-agnostic matcher. `subjectCode` scopes the search; `queries`
@@ -291,6 +326,94 @@ export function createConceptMapper(syllabusVersionId: string) {
     return null;
   }
 
+  /**
+   * Every syllabus name that could apply to this subject, as `CODE:name`.
+   *
+   * `subjectCode` here is the *exam paper* hint, not a syllabus subject. A
+   * paper like GATE CS is one subject to the source and ten to the syllabus, so
+   * scoping candidates to a single syllabus subject would leave the classifier
+   * with nothing to choose from — which is exactly why the archive mapped 1 of
+   * 65 questions. The prefix is what keeps the choice auditable: the model
+   * returns "OS:Process Synchronization" and the reviewer can see both parts.
+   */
+  async function candidateCatalog(subjectCode: string | null): Promise<string[]> {
+    const rows = await syllabusRepo.findSyllabusTreeRows(syllabusVersionId);
+    const subject = rows.find((s) => s.code === subjectCode) ?? null;
+    const scoped = subject ? [subject] : rows;
+    const out: string[] = [];
+    for (const s of scoped) {
+      for (const u of s.units) {
+        out.push(`${s.code}:${u.name}`);
+        for (const t of u.topics) {
+          out.push(`${s.code}:${t.name}`);
+          for (const c of t.concepts) out.push(`${s.code}:${c.name}`);
+        }
+      }
+    }
+    return [...new Set(out)].sort();
+  }
+
+  /** Resolves a `CODE:name` pick from the catalog back to syllabus IDs. The
+   * subject code is applied as a filter, so a model that crosses subjects is
+   * corrected rather than trusted. */
+  async function mappingFromCatalog(label: string): Promise<ConceptMapping | null> {
+    const picked = parseCatalogLabel(label);
+    if (!picked) return null;
+    const subject = await subjectByCode(picked.code);
+    if (!subject) return null;
+
+    const all = await loadCandidates();
+    const target = normalize(picked.name);
+    const exact = all.find((c) => c.subjectId === subject.id && normalize(c.label) === target);
+    if (!exact) return null;
+    const { code } = picked;
+
+    return {
+      subjectId: exact.subjectId,
+      subjectCode: subject.code,
+      unitId: exact.unitId,
+      topicId: exact.topicId,
+      conceptIds: exact.conceptId ? [exact.conceptId] : [],
+      // Assisted picks score below the deterministic bar: the app treats them
+      // as a suggestion a reviewer confirms, never as a confident match.
+      confidence: 0.5,
+      matchedOn: "assisted-exact",
+      rationale: `assisted classification -> ${code}:${exact.label} (${exact.kind}, unverified; reviewer must confirm)`,
+    };
+  }
+
+  /** Resolves the names chosen by the assisted step into IDs, scoped to the
+   * subject so a stale or mismatched pick cannot cross subjects. */
+  async function mappingFromNames(
+    subjectCode: string | null,
+    names: string[]
+  ): Promise<ConceptMapping | null> {
+    const subject = await subjectByCode(subjectCode);
+    if (!subject || names.length === 0) return null;
+    const all = await loadCandidates();
+    const scoped = all.filter((c) => c.subjectId === subject.id);
+
+    for (const name of names) {
+      const target = normalize(name);
+      if (!target) continue;
+      const exact = scoped.find((c) => normalize(c.label) === target);
+      if (!exact) continue;
+      return {
+        subjectId: exact.subjectId,
+        subjectCode: subject.code,
+        unitId: exact.unitId,
+        topicId: exact.topicId,
+        conceptIds: exact.conceptId ? [exact.conceptId] : [],
+        // The assisted step is a suggestion, so the score is fixed below the
+        // deterministic bar for certainty and reads as such in the UI.
+        confidence: 0.5,
+        matchedOn: "assisted-exact",
+        rationale: `assisted classification -> ${exact.kind} "${exact.label}" (unverified; reviewer must confirm)`,
+      };
+    }
+    return null;
+  }
+
   const mapBlock = (block: QuestionBlock) =>
     mapHints(subjectCodeFromTags(block.tags), [
       { text: block.sectionTitle ?? "", matchedOn: "section-title" },
@@ -298,5 +421,5 @@ export function createConceptMapper(syllabusVersionId: string) {
       { text: block.chapterTitle ?? "", matchedOn: "chapter-title" },
     ]);
 
-  return Object.assign(mapBlock, { mapHints });
+  return Object.assign(mapBlock, { mapHints, candidateCatalog, mappingFromCatalog });
 }

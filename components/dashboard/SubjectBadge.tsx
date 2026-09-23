@@ -6,7 +6,7 @@ export function SubjectBadge({ subject, subjectId }: { subject: string; subjectI
   return (
     <div
       aria-hidden="true"
-      className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-[#111111] ${ui.badge[badgeIndex(subjectId, ui.badge.length)]}`}
+      className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold text-ink ${ui.badge[badgeIndex(subjectId, ui.badge.length)]}`}
     >
       {subjectCode(subject)}
     </div>

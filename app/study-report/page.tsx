@@ -14,8 +14,8 @@ export default async function StudyReportPage() {
   return (
     <AppShell active="today" initial={initial}>
       <div>
-        <h1 className="text-xl font-semibold text-[#111111]">Log study session</h1>
-        <p className="mt-1 max-w-[70ch] text-sm text-[#77736D]">
+        <h1 className="text-xl font-semibold text-ink">Log study session</h1>
+        <p className="mt-1 max-w-[70ch] text-sm text-slate">
           Your in-app work is recorded for you — Practice, Tests and Mocks appear
           below automatically. Only add a session manually for work you did
           elsewhere, and note that it counts as evidence at reduced weight.
@@ -23,12 +23,12 @@ export default async function StudyReportPage() {
       </div>
 
       <section className="mt-7 flex flex-col gap-3">
-        <h2 className="text-base font-semibold text-[#111111]">Recorded for you</h2>
+        <h2 className="text-base font-semibold text-ink">Recorded for you</h2>
         <DetectedSessions />
       </section>
 
       <section className="mt-8 flex flex-col gap-3">
-        <h2 className="text-base font-semibold text-[#111111]">Add a session manually</h2>
+        <h2 className="text-base font-semibold text-ink">Add a session manually</h2>
         <StudyReportForm units={units} />
       </section>
     </AppShell>

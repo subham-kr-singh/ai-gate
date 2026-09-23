@@ -51,3 +51,54 @@
   adding a second budget/LLM path.
 - `lib/env.ts` validates env vars; `GEMINI_API_KEY`/`LLM_API_KEY` are optional,
   so every AI-assisted stage must degrade to a deterministic fallback.
+- A subject *hint* is not a syllabus subject. An adapter hint like `"CS"` (a
+  paper code) will not match a `Subject.code` like `OS`/`DBMS`. Scoping syllabus
+  candidates to a single subject silently yields nothing for such sources —
+  widen to a `SUBJECT_CODE:name` catalog instead and let the resolver enforce
+  the subject (`concept-mapper.ts`).
+- Before adding a new AI-assisted stage, check whether `llm-assist.ts` already
+  implements it. It has `classifyConcept`/`reformatBlock` wired to the budget
+  guard; a stage that imports neither is dead code, which is how the archive
+  pilot lost its §54 Stage 5 fallback.
+
+## Local dev gotchas
+- `next build` and `next dev` share `.next/`. Running a production build while a
+  dev server is up corrupts the dev server's route chunks (`Cannot find module
+  './NNNN.js'`, blank "Server Error" pages). Kill the dev server, `rm -rf .next`,
+  then restart `dev` — it is a cache clash, not an app bug.
+- `npx vercel --version` cannot be run here: the CLI's first-run prompt hangs
+  with no TTY. Deployment happens through `vercel-build`, not this sandbox.
+
+## Ingestion run: reading the report
+- The "Schema" line is a *cascade*, not a count of distinct bugs: a block with
+  no mapping emits three `Required` notes (`subjectId`/`unitId`/`topicId`). Read
+  `mapped` against `extracted` for the real signal.
+- `hasImageContent` / "no extractable text" blocks are correct refusals, not
+  failures to fix: the source rasterised the math, so publishing would change
+  the question's meaning.
+
+## UI/UX audit invariants (checked mechanically)
+- No hardcoded hex in `app/**` or `components/**` `.tsx` — colours come from
+  Tailwind tokens (`tailwind.config.ts`) or `lib/design-tokens.ts` for SVG
+  props and inline styles. The only remaining hex literals are in prose.
+- DESIGN.md §3 forbids monospace; `tabular-nums` (Inter digits switched to
+  tabular) is the sanctioned way to align numbers in columns. Do not add
+  `font-*` families.
+- Interactive primitives must keep a visible focus ring: `Button` and `Input`
+  use `focus-visible:*`, and the global rule in `globals.css` covers the rest.
+  `outline-none` without a replacement is a bug.
+- Every modal gets `role="dialog"`, `aria-modal`, a labelled heading, Escape to
+  dismiss, and focus moved in on open.
+- `vercel-build` runs `prisma migrate deploy` before `next build`, so a fresh
+  Vercel project gets its schema. Do not remove that step.
+- The global `:focus-visible` rule in `globals.css` is emitted *after*
+  Tailwind's `.outline-none`, so it wins the cascade and an `outline-none`
+  control still shows a ring. Verify in `.next/static/css` before reporting a
+  missing focus indicator — grepping for `outline-none` alone false-positives.
+- A promoted draft (`status=APPROVED` + `promotedQuestionId`) is terminal in
+  `decide()`. Reject/flag must return `noop` for it; otherwise the draft says
+  REJECTED while its `Question` stays APPROVED, and the two records disagree.
+  The UI disabling the buttons is an affordance, not the guard.
+- Review-queue chip counts are scoped by adapter but never by status: a status
+  chip that counted only its own status would just echo the number it filters
+  to. `listDrafts` derives both from `scopedWhere`.

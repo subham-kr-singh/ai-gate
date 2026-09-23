@@ -10,6 +10,7 @@
  * deliberate human action in `scripts/review-drafts.ts`.
  */
 import { db } from "@/server/db/client";
+import { classifyConcept } from "./llm-assist";
 import { findActiveSyllabusVersion } from "@/server/domains/syllabus/syllabus.repository";
 import {
   createConceptMapper,
@@ -20,7 +21,13 @@ import {
 } from "./concept-mapper";
 import { assembleRecord, type BuiltRecord } from "./record-builder";
 import { findCorroboratingSource, normalizeStatement } from "./dedup";
-import type { ExtractedQuestion, IngestContext, SourceAdapter, SourceUnit } from "./sources/types";
+import {
+  RELIABILITY_RANK,
+  type ExtractedQuestion,
+  type IngestContext,
+  type SourceAdapter,
+  type SourceUnit,
+} from "./sources/types";
 
 export interface RunTotals {
   extracted: number;
@@ -28,6 +35,10 @@ export interface RunTotals {
   publishable: number;
   alreadyKnown: number;
   corroborated: number;
+  /** Existing drafts demoted because this run's source outranks them (§48). */
+  superseded: number;
+  /** Records whose extraction needed an LLM assist (§54 "llm-assisted"). */
+  llmAssisted: number;
   staged: number;
   andErrorsByKind: Map<string, number>;
   /** publishable / extracted, as a percentage. */
@@ -66,6 +77,12 @@ async function mapExtracted(
   return mapHints(subjectCode, queries);
 }
 
+/** The subject a record should be scoped to: the adapter's own tag/hint when
+ * it has one, otherwise an explicit subject tag on the block. */
+function subjectCodeFor(q: ExtractedQuestion): string | null {
+  return subjectCodeFromHint(q.subjectHint) ?? subjectCodeFromTags(q.sourceTags ?? []);
+}
+
 /**
  * Runs one unit of one adapter through stages 4-8.
  *
@@ -81,7 +98,37 @@ export async function runUnit(
 ): Promise<{ totals: RunTotals; records: BuiltRecord[] }> {
   const version = await findActiveSyllabusVersion();
   if (!version) throw new Error("No active SyllabusVersion — run `npm run seed` first.");
-  const mapHints = createConceptMapper(version.id).mapHints;
+  const mapper = createConceptMapper(version.id);
+  const { mapHints, candidateCatalog, mappingFromCatalog } = mapper;
+
+  /**
+   * Deterministic mapping first; the assisted classifier only runs when that
+   * found nothing *and* the adapter told us the subject.
+   *
+   * This is Stage 5 of §54, and it is the reason the official archive is
+   * usable at all: a paper PDF carries no subject tag, so every question would
+   * otherwise land unresolved. The proposal is never trusted as text — the name
+   * the model picks is resolved back to syllabus IDs by the deterministic
+   * matcher, and the record is flagged below so a reviewer knows to look.
+   */
+  async function mapWithAssist(q: ExtractedQuestion) {
+    const deterministic = await mapExtracted(mapHints, q);
+    if (deterministic) return { mapping: deterministic, assisted: false };
+
+    const subjectCode = subjectCodeFor(q);
+    const candidates = await candidateCatalog(subjectCode);
+    if (candidates.length === 0) return { mapping: null, assisted: false };
+
+    const proposal = await classifyConcept({
+      statement: q.statement,
+      subjectCode,
+      candidates,
+    });
+    if (!proposal?.label) return { mapping: null, assisted: false };
+
+    const mapping = await mappingFromCatalog(proposal.label);
+    return { mapping, assisted: Boolean(mapping) };
+  }
 
   const totals: RunTotals = {
     extracted: 0,
@@ -89,6 +136,8 @@ export async function runUnit(
     publishable: 0,
     alreadyKnown: 0,
     corroborated: 0,
+    superseded: 0,
+    llmAssisted: 0,
     staged: 0,
     andErrorsByKind: new Map(),
     yieldPercent: 0,
@@ -97,16 +146,20 @@ export async function runUnit(
 
   for await (const batch of adapter.ingestUnit(unit, opts.ctx)) {
     for (const extracted of batch) {
+      // Checked before the record is counted or assembled, so `--limit 25`
+      // means 25 records rather than 26.
+      if (opts.limit && totals.extracted >= opts.limit) break;
       totals.extracted++;
-      if (opts.limit && totals.extracted > opts.limit) break;
 
-      const mapping = await mapExtracted(mapHints, extracted);
+      const { mapping, assisted } = await mapWithAssist(extracted);
       if (mapping) totals.mapped++;
+      if (assisted) totals.llmAssisted++;
 
       const record = assembleRecord({
         extracted,
         mapping,
         adapterId: adapter.id,
+        reliability: adapter.reliability,
         unitId: unit.id,
         license: adapter.license,
       });
@@ -138,11 +191,39 @@ export async function runUnit(
         statement: extracted.statement,
         sourceUrl: extracted.sourceUrl ?? null,
       });
-      if (corroborating) totals.corroborated++;
+      if (corroborating) {
+        totals.corroborated++;
+        // §48/§102: when the same question is seen at two tiers, the
+        // higher-reliability sighting is the one that should carry the
+        // question. If the incoming record is the stronger source, the
+        // existing draft is demoted to a corroborating reference rather than
+        // both being presented to the reviewer as independent questions.
+        const incomingRank = RELIABILITY_RANK[adapter.reliability];
+        const existingRank = corroborating.matchedReliability
+          ? RELIABILITY_RANK[corroborating.matchedReliability]
+          : 0;
+        if (incomingRank > existingRank) {
+          await db.ingestedQuestionDraft.update({
+            where: { id: corroborating.matchedId },
+            data: {
+              corroboratingSources: [
+                {
+                  adapterId: adapter.id,
+                  sourceUrl: extracted.sourceUrl ?? null,
+                  similarity: corroborating.similarity,
+                  note: `Superseded by higher-reliability source "${adapter.id}" (${adapter.reliability}).`,
+                },
+              ] as unknown as object,
+            },
+          });
+          totals.superseded++;
+        }
+      }
 
       await db.ingestedQuestionDraft.create({
         data: {
           sourceAdapterId: adapter.id,
+          sourceReliability: adapter.reliability,
           sourcePdfUrl: record.source.pdfUrl,
           sourceReleaseTag: record.source.releaseTag,
           sourceQuestionId: record.sourceQuestionId,
@@ -180,6 +261,8 @@ function emptyTotals(): RunTotals {
     publishable: 0,
     alreadyKnown: 0,
     corroborated: 0,
+    superseded: 0,
+    llmAssisted: 0,
     staged: 0,
     andErrorsByKind: new Map(),
     yieldPercent: 0,
@@ -192,6 +275,8 @@ function addTotals(into: RunTotals, from: RunTotals): void {
   into.publishable += from.publishable;
   into.alreadyKnown += from.alreadyKnown;
   into.corroborated += from.corroborated;
+  into.superseded += from.superseded;
+  into.llmAssisted += from.llmAssisted;
   into.staged += from.staged;
   for (const [k, v] of from.andErrorsByKind) {
     into.andErrorsByKind.set(k, (into.andErrorsByKind.get(k) ?? 0) + v);

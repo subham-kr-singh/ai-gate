@@ -1,7 +1,7 @@
 import { questionInputSchema, type QuestionInput } from "@/server/domains/questions/question.schema";
 import { computeContentHash } from "@/server/domains/questions/question.service";
 import type { ConceptMapping } from "./concept-mapper";
-import type { ExtractedQuestion, ProvenanceRef } from "./sources/types";
+import type { ExtractedQuestion, ProvenanceRef, SourceReliability } from "./sources/types";
 
 export type CanonicalQuestionType = "MCQ" | "MSQ" | "NAT";
 
@@ -24,6 +24,9 @@ export interface BuiltRecord {
   source: {
     /** Registry id of the adapter that produced this record. */
     adapterId: string;
+    /** Trust class of that adapter (§48), carried onto the draft so the
+     * reviewer can weigh it without looking up the registry. */
+    reliability: SourceReliability;
     exam: string | null;
     year: number | null;
     questionRef: string | null;
@@ -55,6 +58,9 @@ export interface BuiltRecord {
  * GO prints exact answers (`7`, `0.99`), equal-value pairs (`65 : 65`), and
  * ranges (`197.9 : 198.1`). Only the range form carries tolerance, so an
  * equal-value pair is treated as exact and the two-sided form as a band.
+ *
+ * The official IIT keys also print bands as prose ("4.24 to 4.26"), so an
+ * explicit `to` between two numbers is read the same way.
  */
 export function parseNatAnswer(raw: string): { value: string; min?: number; max?: number } | null {
   const cleaned = raw.replace(/[\u2013\u2014]/g, "-").trim();
@@ -64,6 +70,17 @@ export function parseNatAnswer(raw: string): { value: string; min?: number; max?
   if (pair) {
     const a = Number(pair[1]);
     const b = Number(pair[2]);
+    if (Number.isNaN(a) || Number.isNaN(b)) return null;
+    if (a === b) return { value: String(a) };
+    return { value: String((a + b) / 2), min: Math.min(a, b), max: Math.max(a, b) };
+  }
+
+  // Official keys sometimes spell the band out, e.g. "4.24 to 4.26". The word
+  // is required so a bare "4.24 4.26" is still rejected as ambiguous.
+  const worded = /^(-?\d+(?:\.\d+)?)\s+to\s+(-?\d+(?:\.\d+)?)$/i.exec(cleaned);
+  if (worded) {
+    const a = Number(worded[1]);
+    const b = Number(worded[2]);
     if (Number.isNaN(a) || Number.isNaN(b)) return null;
     if (a === b) return { value: String(a) };
     return { value: String((a + b) / 2), min: Math.min(a, b), max: Math.max(a, b) };
@@ -107,11 +124,13 @@ export function assembleRecord(args: {
   mapping: ConceptMapping | null;
   /** Registry id of the adapter that produced `extracted`. */
   adapterId: string;
+  /** Trust class of that adapter (§48). */
+  reliability: SourceReliability;
   /** Source unit id, recorded as `releaseTag`. */
   unitId: string;
   license: string;
 }): BuiltRecord {
-  const { extracted, mapping, adapterId, unitId, license } = args;
+  const { extracted, mapping, adapterId, reliability, unitId, license } = args;
   const errors: string[] = [...extracted.errors];
 
   const options = extracted.options ?? [];
@@ -202,6 +221,7 @@ export function assembleRecord(args: {
     sourceQuestionId: extracted.sourceQuestionId,
     source: {
       adapterId,
+      reliability,
       exam: extracted.exam ?? null,
       year: extracted.year ?? null,
       questionRef: extracted.questionRef ?? null,

@@ -6,6 +6,7 @@ import { ActivityChart } from "./ActivityChart";
 import { FilterDropdown } from "./FilterDropdown";
 import type { ActivitySeries } from "@/server/domains/mastery/dashboard.queries";
 import type { Overview } from "@/server/domains/mastery/mastery.queries";
+import { PASTEL_CLASS, type PastelTone } from "@/components/ui/tokens";
 
 export interface SubjectOption {
   subjectId: string;
@@ -100,7 +101,7 @@ export function DashboardPanel({
 
   return (
     <>
-      <section aria-label="Activity" className="rounded-[24px] bg-[#0E8074] p-6 text-white md:p-7">
+      <section aria-label="Activity" className="rounded-[24px] bg-teal p-6 text-white md:p-7">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="font-semibold" style={{ fontSize: "clamp(18px,1.8vw,24px)" }}>
@@ -132,7 +133,7 @@ export function DashboardPanel({
                   type="button"
                   aria-pressed={range === r.days}
                   onClick={() => setRange(r.days)}
-                  className={`h-8 rounded-full px-3 text-xs ${range === r.days ? "bg-white text-[#111111]" : "text-white"}`}
+                  className={`h-8 rounded-full px-3 text-xs ${range === r.days ? "bg-white text-ink" : "text-white"}`}
                 >
                   {r.label}
                 </button>
@@ -170,33 +171,33 @@ export function DashboardPanel({
 
       <section aria-label="Summary" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <ScopedTile
-          fill="#F4DEB4"
+          tone="butter"
           label="Questions this week"
           value={String(active ? active.questionsLast7d : series.totalAttempted)}
           note={active ? `${active.subject} \u00b7 last 7 days` : `${series.points.at(-1)?.attempted ?? 0} today`}
         />
         <ScopedTile
-          fill="#C7E3F5"
+          tone="sky"
           label="Syllabus coverage"
           value={pct(active ? active.coverage : overview.coverage)}
           note={`${active ? active.unitsStarted : overview.unitsStarted} / ${active ? active.totalUnits : overview.totalUnits} units started`}
         />
         <ScopedTile
-          fill="#D0CCF4"
+          tone="lavender"
           label="Mocks completed"
           value={String(overview.mocksCompleted)}
           note={`Target ${overview.mocksTarget} \u00b7 ${overview.mocksCompleted >= overview.mocksTarget ? "on pace" : "behind pace"}`}
           accent={
-            overview.mocksCompleted >= overview.mocksTarget ? undefined : "#D98E2B"
+            overview.mocksCompleted >= overview.mocksTarget ? undefined : "amber"
           }
         />
       </section>
 
       <div>
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-[#111111]">Exam week</h2>
+          <h2 className="font-semibold text-ink">Exam week</h2>
           {daysToExam !== null && (
-            <span className="text-sm text-[#77736D]">
+            <span className="text-sm text-slate">
               {daysToExam} {daysToExam === 1 ? "day" : "days"} to exam
             </span>
           )}
@@ -204,11 +205,11 @@ export function DashboardPanel({
         <ol className="m-0 mt-3 flex list-none items-center justify-between gap-1 p-0" aria-label="This week">
           {weekStrip.map((d) => (
             <li key={d.key} className="flex flex-col items-center gap-1">
-              <span className="text-xs text-[#77736D]">{d.weekday.slice(0, 1)}</span>
+              <span className="text-xs text-slate">{d.weekday.slice(0, 1)}</span>
               <span
                 aria-current={d.isToday ? "date" : undefined}
                 className={`flex h-8 w-8 items-center justify-center rounded-full text-xs tabular-nums ${
-                  d.isToday ? "bg-[#111111] text-white" : "text-[#111111]"
+                  d.isToday ? "bg-ink text-white" : "text-ink"
                 }`}
               >
                 {d.dayOfMonth}
@@ -233,26 +234,25 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 /** Stat tile for the filtered view; pastels are the DESIGN.md tile tokens. */
 function ScopedTile({
-  fill,
+  tone,
   label,
   value,
   note,
   accent,
 }: {
-  fill: string;
+  /** Pastel fill, as a union so an off-palette color cannot be passed in. */
+  tone: PastelTone;
   label: string;
   value: string;
   note: string;
   /** Amber is reserved for attention states only (DESIGN.md §2). */
-  accent?: string;
+  accent?: "amber";
 }) {
   return (
-    <div className="rounded-[20px] p-5" style={{ backgroundColor: fill }}>
-      <p className="text-xs text-[#3a3a3a]">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-[#111111]">{value}</p>
-      <p className="mt-1 text-xs text-[#3a3a3a]" style={accent ? { color: accent } : undefined}>
-        {note}
-      </p>
+    <div className={`rounded-[20px] p-5 ${PASTEL_CLASS[tone]}`}>
+      <p className="text-xs text-body-muted">{label}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{value}</p>
+      <p className={`mt-1 text-xs ${accent === "amber" ? "text-amber" : "text-body-muted"}`}>{note}</p>
     </div>
   );
 }

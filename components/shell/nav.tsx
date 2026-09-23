@@ -8,7 +8,8 @@ export type NavKey =
   | "mocks"
   | "mistakes"
   | "flashcards"
-  | "reports";
+  | "reports"
+  | "review";
 
 interface NavItem {
   key: NavKey;
@@ -130,6 +131,18 @@ export const NAV_ITEMS: NavItem[] = [
       </svg>
     ),
   },
+  {
+    key: "review",
+    href: "/review",
+    label: "Review",
+    short: "Review",
+    icon: (
+      <svg {...ICON}>
+        <path d="M9 11l3 3L22 4" />
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      </svg>
+    ),
+  },
 ];
 
 /** Four tabs fit a phone bar without cramping; the drawer above carries all
@@ -142,4 +155,5 @@ export const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((n) => MOBILE_BAR_KEYS.includes
 export const NAV_GROUPS: { label: string; keys: NavKey[] }[] = [
   { label: "Study", keys: ["today", "syllabus", "practice", "flashcards"] },
   { label: "Assess", keys: ["tests", "mocks", "mistakes", "reports"] },
+  { label: "Curate", keys: ["review"] },
 ];

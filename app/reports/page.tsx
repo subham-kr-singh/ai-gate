@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PASTEL_CLASS, formatDay, pct } from "@/components/planner/format";
+import { formatDay, pct } from "@/components/planner/format";
 import { AppShell } from "@/components/shell/AppShell";
 import { PhaseTrack, ProgressBar, ReasonRows, StatTile, cardClass } from "@/components/planner/ui";
 import { requireUserId } from "@/server/auth/session";
@@ -42,7 +42,7 @@ export default async function ReportsPage() {
           <PhaseTrack phase={phase} />
           <div>
             <p className="mb-2 text-sm font-semibold">Pace</p>
-            <dl className="flex flex-col divide-y divide-[#E3E0DA] text-sm">
+            <dl className="flex flex-col divide-y divide-line text-sm">
               {[
                 ["Days to exam", pace.daysToExam == null ? "Not set" : String(pace.daysToExam)],
                 ["Coverage due by", formatDay(pace.coverageDeadlineKey)],
@@ -52,7 +52,7 @@ export default async function ReportsPage() {
                 ["Needed", pace.requiredUnitsPerDay == null ? "Not set" : `${pace.requiredUnitsPerDay.toFixed(2)} units per study day`],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-3 py-2">
-                  <dt className="text-[#77736D]">{k}</dt>
+                  <dt className="text-slate">{k}</dt>
                   <dd className="text-right tabular-nums">{v}</dd>
                 </div>
               ))}
@@ -63,20 +63,20 @@ export default async function ReportsPage() {
     >
       <header>
         <h1 className="text-xl font-semibold">Reports</h1>
-        <p className="text-sm text-[#77736D]">Where you stand, and what is slowing you down.</p>
+        <p className="text-sm text-slate">Where you stand, and what is slowing you down.</p>
       </header>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatTile fill={PASTEL_CLASS.sky} label="Syllabus coverage" value={pct(e.syllabusCoverage)} note={`${pace.remainingUnitEquivalents.toFixed(1)} units of syllabus left`} />
-        <StatTile fill={PASTEL_CLASS.butter} label="Concept mastery" value={pct(e.mastery, "No data")} note="Across units you have practised" />
-        <StatTile fill={PASTEL_CLASS.lavender} label="PYQ accuracy" value={pct(e.pyqAccuracy, "No data")} note={`${e.pyqAttempted} PYQs attempted`} />
+        <StatTile tone="sky" label="Syllabus coverage" value={pct(e.syllabusCoverage)} note={`${pace.remainingUnitEquivalents.toFixed(1)} units of syllabus left`} />
+        <StatTile tone="butter" label="Concept mastery" value={pct(e.mastery, "No data")} note="Across units you have practised" />
+        <StatTile tone="lavender" label="PYQ accuracy" value={pct(e.pyqAccuracy, "No data")} note={`${e.pyqAttempted} PYQs attempted`} />
       </div>
 
       <section className={`${cardClass} p-5`} aria-labelledby="track">
         <h2 id="track" className="font-semibold">Am I on track?</h2>
         <p className="mt-1 text-sm">
           {pace.status !== "NO_EXAM_DATE" && (
-            <span className={`mr-2 text-xs font-medium ${tone === "teal" ? "text-[#0E8074]" : "text-[#D98E2B]"}`}>
+            <span className={`mr-2 text-xs font-medium ${tone === "teal" ? "text-teal" : "text-amber"}`}>
               {pace.status === "ON_TRACK" ? "On track" : pace.status === "NEEDS_ATTENTION" ? "Needs attention" : "Behind pace"}
             </span>
           )}
@@ -84,11 +84,11 @@ export default async function ReportsPage() {
         </p>
         <div className="mt-5 flex flex-col gap-4">
           <div>
-            <div className="mb-1 flex justify-between text-sm"><span>Revision coverage</span><span className="tabular-nums text-[#77736D]">{pct(e.revisionCoverage, "No data")}</span></div>
+            <div className="mb-1 flex justify-between text-sm"><span>Revision coverage</span><span className="tabular-nums text-slate">{pct(e.revisionCoverage, "No data")}</span></div>
             <ProgressBar value={e.revisionCoverage ?? 0} tone="teal" label="Revision coverage" />
           </div>
           <div>
-            <div className="mb-1 flex justify-between text-sm"><span>Mocks</span><span className="tabular-nums text-[#77736D]">{e.mocksCompleted} of {e.mockTarget}</span></div>
+            <div className="mb-1 flex justify-between text-sm"><span>Mocks</span><span className="tabular-nums text-slate">{e.mocksCompleted} of {e.mockTarget}</span></div>
             <ProgressBar value={e.mocksCompleted / e.mockTarget} label="Mocks completed" />
           </div>
         </div>
@@ -99,14 +99,14 @@ export default async function ReportsPage() {
         {r.why.length ? (
           <ReasonRows rows={r.why.map((w) => ({ text: w.text, value: WHY_LABEL[w.type], tone: "amber" as const }))} />
         ) : (
-          <p className="mt-1 text-sm text-[#77736D]">Nothing is slowing you down right now.</p>
+          <p className="mt-1 text-sm text-slate">Nothing is slowing you down right now.</p>
         )}
       </section>
 
       <section className={`${cardClass} p-5`} aria-labelledby="weekly">
         <div className="flex items-baseline justify-between gap-3">
           <h2 id="weekly" className="font-semibold">Weekly review</h2>
-          {r.weekly && <span className="text-xs text-[#77736D]">{formatDay(r.weekly.capturedOn)}</span>}
+          {r.weekly && <span className="text-xs text-slate">{formatDay(r.weekly.capturedOn)}</span>}
         </div>
         {r.weekly ? (
           <>
@@ -116,7 +116,7 @@ export default async function ReportsPage() {
               ))}
             </ul>
             {(r.weekly.report.improvements.length > 0 || r.weekly.report.regressions.length > 0) && (
-              <div className="mt-3 border-t border-[#E3E0DA]">
+              <div className="mt-3 border-t border-line">
                 <ReasonRows
                   rows={[
                     ...r.weekly.report.improvements.map((m) => ({ text: m.name, value: `+${Math.round(m.delta * 100)} points`, tone: "teal" as const })),
@@ -127,14 +127,14 @@ export default async function ReportsPage() {
             )}
           </>
         ) : (
-          <p className="mt-1 max-w-md text-sm text-[#77736D]">
+          <p className="mt-1 max-w-md text-sm text-slate">
             Your first weekly review is written after the first Sunday-night run. Until then, the numbers above are live.
           </p>
         )}
       </section>
 
       {r.needsSetup && (
-        <p className="text-sm text-[#77736D]">
+        <p className="text-sm text-slate">
           Pace needs an exam date. <Link href="/planner" className="underline">Set it on the Today screen.</Link>
         </p>
       )}

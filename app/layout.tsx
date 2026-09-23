@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { palette } from "@/lib/design-tokens";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap" });
 
@@ -14,7 +15,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   // Matches the app surface so iOS Safari does not paint a white band when the
   // address bar collapses.
-  themeColor: "#F8F6F2",
+  themeColor: palette.surface,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

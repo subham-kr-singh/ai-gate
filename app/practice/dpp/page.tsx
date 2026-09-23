@@ -57,20 +57,20 @@ export default async function DppPage() {
       {/* Header — matches the dashboard's greeting/meta pairing */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-[#77736D]">Today&apos;s practice</p>
-          <h1 className="text-xl font-semibold text-[#111111]">Daily Practice Problems</h1>
+          <p className="text-sm text-slate">Today&apos;s practice</p>
+          <h1 className="text-xl font-semibold text-ink">Daily Practice Problems</h1>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-semibold text-[#111111]">
+          <p className="text-2xl font-semibold text-ink">
             {completed}
-            <span className="text-[#9B968E]">/{total}</span>
+            <span className="text-slate-light">/{total}</span>
           </p>
-          <p className="text-xs text-[#77736D]">complete</p>
+          <p className="text-xs text-slate">complete</p>
         </div>
       </div>
 
       {total === 0 ? (
-        <div className="rounded-[20px] border border-[#E3E0DA] p-6 text-sm text-[#77736D]">
+        <div className="rounded-[20px] border border-line p-6 text-sm text-slate">
           No practice set could be generated yet — attempt a few questions or log a study report so
           there&apos;s something to build today&apos;s set from.
         </div>
@@ -80,26 +80,26 @@ export default async function DppPage() {
           <div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/10">
               <div
-                className="animate-fill-w h-full rounded-full bg-[#0E8074]"
+                className="animate-fill-w h-full rounded-full bg-teal"
                 style={{ width: `${percent}%` }}
               />
             </div>
-            <p className="mt-1 text-xs text-[#77736D]">{percent}% complete</p>
+            <p className="mt-1 text-xs text-slate">{percent}% complete</p>
           </div>
 
           {nextUp && (
             <Link
               href={`/practice/dpp/${dpp.dppId}/question/${nextUp.questionId}`}
-              className="inline-flex h-10 w-fit items-center rounded-full bg-[#111111] px-5 text-sm font-medium text-white"
+              className="inline-flex h-10 w-fit items-center rounded-full bg-ink px-5 text-sm font-medium text-white"
             >
               Continue — question {nextUp.position} of {total}
             </Link>
           )}
 
           {/* Question list — same panel treatment as "Memory Management — concepts" on the dashboard */}
-          <div className="rounded-[20px] border border-[#E3E0DA] p-5">
-            <p className="mb-3 font-semibold text-[#111111]">Question set</p>
-            <ul className="flex flex-col divide-y divide-[#E3E0DA]">
+          <div className="rounded-[20px] border border-line p-5">
+            <p className="mb-3 font-semibold text-ink">Question set</p>
+            <ul className="flex flex-col divide-y divide-line">
               {dpp.questions.map((item) => {
                 const question = questionById.get(item.questionId);
                 const urgent = isUrgentSource(item.source);
@@ -109,10 +109,10 @@ export default async function DppPage() {
                       href={`/practice/dpp/${dpp.dppId}/question/${item.questionId}`}
                       className="min-w-0 flex-1 pr-4"
                     >
-                      <p className="truncate text-sm text-[#111111]">
+                      <p className="truncate text-sm text-ink">
                         {question?.statement?.substring(0, 50) ?? `Question ${item.position}`}
                       </p>
-                      <p className={`mt-0.5 text-xs ${urgent ? "text-[#D98E2B]" : "text-[#77736D]"}`}>
+                      <p className={`mt-0.5 text-xs ${urgent ? "text-amber" : "text-slate"}`}>
                         {SOURCE_LABEL[item.source]}
                       </p>
                     </Link>
@@ -120,9 +120,9 @@ export default async function DppPage() {
                       className={`shrink-0 text-xs font-medium ${
                         item.completedAt
                           ? item.correct
-                            ? "text-[#0E8074]"
-                            : "text-[#D98E2B]"
-                          : "text-[#9B968E]"
+                            ? "text-teal"
+                            : "text-amber"
+                          : "text-slate-light"
                       }`}
                     >
                       {item.completedAt ? (item.correct ? "Correct" : "Incorrect") : "Not attempted"}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { palette } from "@/lib/design-tokens";
 import type { ActivityPoint } from "@/server/domains/mastery/dashboard.queries";
 
 interface Props {
@@ -18,7 +19,7 @@ const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
  * `?? default` fallbacks scatter through the render path. */
 const COLORS = {
   bar: "rgba(255,255,255,0.28)",
-  barActive: "#ffffff",
+  barActive: palette.white,
   grid: "rgba(255,255,255,0.18)",
 };
 

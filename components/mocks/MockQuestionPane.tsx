@@ -37,17 +37,17 @@ export function MockQuestionPane({
   return (
     <article aria-labelledby={`q-${q.id}-h`} className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <header>
-        <h2 id={`q-${q.id}-h`} className="text-sm font-semibold text-[#111111]">
+        <h2 id={`q-${q.id}-h`} className="text-sm font-semibold text-ink">
           Question {q.position}
-          <span className="font-normal text-[#77736D]">
+          <span className="font-normal text-slate">
             {' '}
             · {sectionLabel} · {q.marks} {q.marks === 1 ? 'mark' : 'marks'} · {TYPE_LABEL[q.type]}
           </span>
         </h2>
-        <p className="mt-1 text-xs text-[#77736D]">{q.markingNote}</p>
+        <p className="mt-1 text-xs text-slate">{q.markingNote}</p>
       </header>
 
-      <div className="text-[15px] leading-relaxed text-[#111111]">{renderContent(q.statement)}</div>
+      <div className="text-[15px] leading-relaxed text-ink">{renderContent(q.statement)}</div>
 
       {q.type === 'MCQ' && q.options && (
         <fieldset disabled={disabled} className="flex flex-col gap-3">
@@ -57,15 +57,15 @@ export function MockQuestionPane({
             return (
               <label
                 key={o.id}
-                className={`flex cursor-pointer items-start gap-3 rounded-[20px] border bg-white p-4 focus-within:ring-2 focus-within:ring-[#111111] ${
-                  checked ? 'border-[#111111]' : 'border-[#E3E0DA]'
+                className={`flex cursor-pointer items-start gap-3 rounded-[20px] border bg-white p-4 focus-within:ring-2 focus-within:ring-ink ${
+                  checked ? 'border-ink' : 'border-line'
                 }`}
               >
                 <input type="radio" name={`q-${q.id}`} className="sr-only" checked={checked} onChange={() => onSelect(o.id)} />
                 <span
                   aria-hidden
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
-                    checked ? 'bg-[#111111] text-white' : 'bg-[#ECE9E3] text-[#111111]'
+                    checked ? 'bg-ink text-white' : 'bg-control text-ink'
                   }`}
                 >
                   {o.id}
@@ -79,14 +79,14 @@ export function MockQuestionPane({
 
       {q.type === 'MSQ' && q.options && (
         <fieldset disabled={disabled} className="flex flex-col gap-3">
-          <legend className="mb-1 text-xs text-[#77736D]">Select all that apply</legend>
+          <legend className="mb-1 text-xs text-slate">Select all that apply</legend>
           {q.options.map((o) => {
             const checked = selectedList.includes(o.id);
             return (
               <label
                 key={o.id}
-                className={`flex cursor-pointer items-start gap-3 rounded-[20px] border bg-white p-4 focus-within:ring-2 focus-within:ring-[#111111] ${
-                  checked ? 'border-[#111111]' : 'border-[#E3E0DA]'
+                className={`flex cursor-pointer items-start gap-3 rounded-[20px] border bg-white p-4 focus-within:ring-2 focus-within:ring-ink ${
+                  checked ? 'border-ink' : 'border-line'
                 }`}
               >
                 <input
@@ -100,7 +100,7 @@ export function MockQuestionPane({
                 <span
                   aria-hidden
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-semibold ${
-                    checked ? 'bg-[#111111] text-white' : 'bg-[#ECE9E3] text-[#111111]'
+                    checked ? 'bg-ink text-white' : 'bg-control text-ink'
                   }`}
                 >
                   {o.id}
@@ -114,7 +114,7 @@ export function MockQuestionPane({
 
       {q.type === 'NAT' && (
         <label className="block">
-          <span className="text-sm text-[#77736D]">Your answer</span>
+          <span className="text-sm text-slate">Your answer</span>
           <input
             inputMode="decimal"
             autoComplete="off"
@@ -125,20 +125,20 @@ export function MockQuestionPane({
               const v = e.target.value;
               if (/^-?\d*\.?\d*$/.test(v)) onSelect(v, true);
             }}
-            className="mt-2 h-12 w-full rounded-full bg-[#ECE9E3] px-5 text-lg text-[#111111] outline-none placeholder:text-[#9B968E] focus-visible:ring-2 focus-visible:ring-[#111111] sm:w-64"
+            className="mt-2 h-12 w-full rounded-full bg-control px-5 text-lg text-ink outline-none placeholder:text-slate-light focus-visible:ring-2 focus-visible:ring-ink sm:w-64"
             placeholder="Type a number"
           />
         </label>
       )}
 
-      <div className="flex flex-wrap gap-2 border-t border-[#E3E0DA] pt-4">
+      <div className="flex flex-wrap gap-2 border-t border-line pt-4">
         <button
           type="button"
           onClick={onToggleMark}
           aria-pressed={answer.markedForReview}
           disabled={disabled}
           className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm ${
-            answer.markedForReview ? 'bg-[#D98E2B] font-medium text-[#111111]' : 'bg-[#ECE9E3] text-[#222222]'
+            answer.markedForReview ? 'bg-amber font-medium text-ink' : 'bg-control text-ink-soft'
           }`}
         >
           <Flag size={14} aria-hidden />
@@ -151,7 +151,7 @@ export function MockQuestionPane({
           disabled={disabled}
           title="Optional. Feeds the guessing analysis on your result page."
           className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-sm ${
-            answer.guessed ? 'bg-[#111111] font-medium text-white' : 'bg-[#ECE9E3] text-[#222222]'
+            answer.guessed ? 'bg-ink font-medium text-white' : 'bg-control text-ink-soft'
           }`}
         >
           <HelpCircle size={14} aria-hidden />
@@ -161,7 +161,7 @@ export function MockQuestionPane({
           type="button"
           onClick={onClear}
           disabled={disabled || answer.selected === null}
-          className="inline-flex h-9 items-center gap-2 rounded-full bg-[#ECE9E3] px-4 text-sm text-[#222222] disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-2 rounded-full bg-control px-4 text-sm text-ink-soft disabled:opacity-50"
         >
           <Eraser size={14} aria-hidden />
           Clear response

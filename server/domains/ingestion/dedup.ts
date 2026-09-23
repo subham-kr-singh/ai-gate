@@ -18,6 +18,7 @@
  * source rather than discarded.
  */
 import { db } from "@/server/db/client";
+import { RELIABILITY_RANK, type SourceReliability } from "./sources/types";
 
 /**
  * Reduces a statement to a comparison skeleton: lowercase, LaTeX/HTML
@@ -51,8 +52,10 @@ export interface Corroboration {
   /** The existing draft or question that states the same question. */
   matchedId: string;
   matchedKind: "draft" | "question";
-  /** Source the earlier sighting came from, if known. */
+  /** Adapter id the earlier sighting came from, if known. */
   matchedSource: string | null;
+  /** Trust class of the earlier sighting, so the two can be ranked. */
+  matchedReliability: SourceReliability | null;
   similarity: number;
 }
 
@@ -75,11 +78,27 @@ export function statementSimilarity(a: string, b: string): number {
  * because a false duplicate silently hides a real question from review. */
 export const CORROBORATION_THRESHOLD = 0.85;
 
+/** A distinctive token from the middle of a statement. The opening is often
+ * formula-heavy or boilerplate ("which of the following"), so the midpoint
+ * separates questions far better. */
+function probeToken(skeleton: string): string | null {
+  const tokens = skeleton.split(" ");
+  const probe = tokens[Math.floor(tokens.length / 2)] ?? tokens[0];
+  return probe && probe.length >= 4 ? probe : null;
+}
+
 /**
- * Looks for an earlier sighting of this question from a different source.
+ * Looks for an earlier sighting of this question from a *different* source.
  *
- * Scans candidates that share a distinctive opening token — a full scan of
- * the drafts table would be O(n²) across a multi-source run.
+ * Candidates are narrowed by a shared distinctive token before the similarity
+ * test, because a full pairwise scan of the drafts table would be O(n²) across
+ * a multi-source run. The token search runs against `normalizedStatement`
+ * rather than `rawBlockText`: both sides of the comparison must be normalised
+ * the same way, or LaTeX and markup differences mask a real duplicate.
+ *
+ * The candidate set is intentionally *not* filtered by reliability — ranking
+ * the two sightings against each other is the caller's job, since only the
+ * caller knows the incoming record's tier.
  */
 export async function findCorroboratingSource(args: {
   adapterId: string;
@@ -89,29 +108,35 @@ export async function findCorroboratingSource(args: {
   const skeleton = normalizeStatement(args.statement);
   if (skeleton.length < MIN_SKELETON_LENGTH) return null;
 
-  // A distinctive token from the middle of the statement, to keep the
-  // candidate set small without relying on the (often formula-heavy) opening.
-  const tokens = skeleton.split(" ");
-  const probe = tokens[Math.floor(tokens.length / 2)] ?? tokens[0];
-  if (!probe || probe.length < 4) return null;
+  const probe = probeToken(skeleton);
+  if (!probe) return null;
 
   const drafts = await db.ingestedQuestionDraft.findMany({
     where: {
-      rawBlockText: { contains: probe, mode: "insensitive" },
-      NOT: { sourceReleaseTag: args.sourceUrl ?? "" },
+      normalizedStatement: { contains: probe },
+      // A different source is what makes this corroboration rather than a
+      // re-run of the same adapter (which the content hash already handles).
+      NOT: { sourceAdapterId: args.adapterId },
     },
-    select: { id: true, rawBlockText: true, sourceReleaseTag: true, sourcePdfUrl: true },
+    select: {
+      id: true,
+      normalizedStatement: true,
+      sourceAdapterId: true,
+      sourceReliability: true,
+    },
     take: 25,
   });
 
   let best: Corroboration | null = null;
   for (const d of drafts) {
-    const similarity = statementSimilarity(skeleton, normalizeStatement(d.rawBlockText));
+    if (!d.normalizedStatement) continue;
+    const similarity = statementSimilarity(skeleton, d.normalizedStatement);
     if (similarity >= CORROBORATION_THRESHOLD && (!best || similarity > best.similarity)) {
       best = {
         matchedId: d.id,
         matchedKind: "draft",
-        matchedSource: d.sourceReleaseTag || d.sourcePdfUrl,
+        matchedSource: d.sourceAdapterId,
+        matchedReliability: d.sourceReliability as SourceReliability,
         similarity,
       };
     }

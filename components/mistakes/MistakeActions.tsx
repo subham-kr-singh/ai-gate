@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api-fetch";
 import { ui } from "@/lib/ui-tokens";
 import { MISTAKE_TYPES, MISTAKE_TYPE_LABELS, type MistakeTypeValue } from "@/server/domains/mistakes/mistake.types";
 
@@ -19,13 +20,15 @@ export function MistakeActions({ mistakeId, current, resolved }: Props) {
 
   async function send(body: Record<string, unknown>) {
     setError(null);
-    const res = await fetch("/api/mistakes", {
+    const res = await apiFetch("/api/mistakes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     if (!res.ok) {
-      setError("Could not save that change. Check your connection and try again.");
+      // The server's own message when it sent one, otherwise the connection
+      // wording: apiFetch folds a network failure into `ok: false`.
+      setError(res.error ?? "Could not save that change. Check your connection and try again.");
       return;
     }
     start(() => router.refresh());
@@ -50,12 +53,12 @@ export function MistakeActions({ mistakeId, current, resolved }: Props) {
           type="button"
           disabled={pending}
           onClick={() => send({ kind: "resolve", mistakeId, resolved: !resolved })}
-          className="h-9 rounded-full border border-[#E3E0DA] px-4 text-sm text-[#111111]"
+          className="h-9 rounded-full border border-line px-4 text-sm text-ink"
         >
           {resolved ? "Reopen mistake" : "Mark resolved"}
         </button>
       </div>
-      {error && <p role="alert" className="mt-2 text-sm text-[#D98E2B]">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-sm text-amber">{error}</p>}
     </div>
   );
 }

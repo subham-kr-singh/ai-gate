@@ -114,6 +114,13 @@ export interface ExtractedQuestion {
   /** Adapter's own confidence in the extraction (0..1), not the syllabus
    * match confidence. */
   extractionConfidence: number;
+  /**
+   * How the text was obtained. `"deterministic"` is the DOM/regex/PDF path;
+   * `"llm-assisted"` means `llm-assist.ts` reformatted an ambiguous block.
+   * Reviewers scrutinise the latter far more closely, so it is recorded
+   * rather than left implicit.
+   */
+  extractionSource?: "deterministic" | "llm-assisted";
 }
 
 export interface IngestContext {

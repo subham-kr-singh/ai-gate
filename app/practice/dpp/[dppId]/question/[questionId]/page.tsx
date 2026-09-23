@@ -63,19 +63,19 @@ export default async function DppQuestionPage({
     <AppShell active="practice" initial={(user.name ?? user.email)[0]?.toUpperCase()}>
       <div className="mx-auto flex w-full max-w-[52rem] flex-col gap-5">
         <nav className="flex items-center justify-between text-sm">
-          <Link href="/practice/dpp" className="text-[#77736D] underline-offset-2 hover:underline">
+          <Link href="/practice/dpp" className="text-slate underline-offset-2 hover:underline">
             Today&apos;s practice set
           </Link>
-          <span className="text-[#77736D]">
+          <span className="text-slate">
             {answered} of {dpp.questions.length} answered
           </span>
         </nav>
 
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-xl font-semibold text-[#111111]">
+          <h1 className="text-xl font-semibold text-ink">
             Question {position} of {dpp.questions.length}
           </h1>
-          <span className="text-xs text-[#77736D]">{SOURCE_LABEL[slot.source]}</span>
+          <span className="text-xs text-slate">{SOURCE_LABEL[slot.source]}</span>
         </div>
 
         <DppQuestionCard

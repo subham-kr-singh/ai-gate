@@ -85,23 +85,23 @@ export default async function DashboardPage({
 
       <Link
         href="/tutor"
-        className="text-sm text-[#111111] underline-offset-2 hover:underline"
+        className="text-sm text-ink underline-offset-2 hover:underline"
       >
         Tutor — describe a session and I&apos;ll draft the report
       </Link>
 
       <section aria-labelledby="pending-revision">
-        <h2 id="pending-revision" className="mb-2 text-sm font-semibold text-[#111111]">Pending revision</h2>
+        <h2 id="pending-revision" className="mb-2 text-sm font-semibold text-ink">Pending revision</h2>
         {revision.length === 0 ? (
-          <p className="text-sm text-[#77736D]">Nothing due. Reviews are scheduled as you practice.</p>
+          <p className="text-sm text-slate">Nothing due. Reviews are scheduled as you practice.</p>
         ) : (
           <ul className="m-0 flex list-none flex-col gap-3 p-0">
             {revision.map((r) => (
               <li key={r.conceptId}>
                 {r.retention === null ? (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-[#111111]">{r.name}</span>
-                    <span className="text-[#77736D]">New</span>
+                    <span className="text-ink">{r.name}</span>
+                    <span className="text-slate">New</span>
                   </div>
                 ) : (
                   <MasteryBar label={r.name} value={r.retention} tone="teal" />
@@ -113,7 +113,7 @@ export default async function DashboardPage({
       </section>
 
       <section aria-labelledby="needs-attention">
-        <h2 id="needs-attention" className="mb-2 text-sm font-semibold text-[#111111]">Needs attention</h2>
+        <h2 id="needs-attention" className="mb-2 text-sm font-semibold text-ink">Needs attention</h2>
         <WeakConceptList items={weakConcepts} />
       </section>
     </>
@@ -122,8 +122,8 @@ export default async function DashboardPage({
   return (
     <AppShell active="today" initial={(name[0] ?? "G").toUpperCase()} aside={aside}>
       <div>
-        <p className="text-sm text-[#77736D]">Welcome back,</p>
-        <h1 className="text-xl font-semibold text-[#111111]">{name}</h1>
+        <p className="text-sm text-slate">Welcome back,</p>
+        <h1 className="text-xl font-semibold text-ink">{name}</h1>
       </div>
 
       <DashboardPanel
@@ -137,13 +137,13 @@ export default async function DashboardPage({
 
       <section aria-labelledby="continue">
         <div className="mb-3 flex items-center justify-between">
-          <h2 id="continue" className="font-semibold text-[#111111]">
+          <h2 id="continue" className="font-semibold text-ink">
             Continue learning
           </h2>
-          <span className="text-sm text-[#77736D]">{overview.weakUnitCount} in progress</span>
+          <span className="text-sm text-slate">{overview.weakUnitCount} in progress</span>
         </div>
         {continueLearning.length === 0 ? (
-          <p className="text-sm text-[#77736D]">
+          <p className="text-sm text-slate">
             {subjectId
               ? "No units in progress for this subject. Take a topic quiz to start one."
               : "No units in progress. Take a topic quiz or log a study session to start one."}
@@ -152,15 +152,15 @@ export default async function DashboardPage({
           <ul className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-3">
             {continueLearning.map((u) => (
               <li key={u.unitId}>
-                <Link href={`/syllabus/${u.subjectId}`} className="block h-full rounded-[20px] border border-[#E3E0DA] bg-white p-5">
+                <Link href={`/syllabus/${u.subjectId}`} className="block h-full rounded-[20px] border border-line bg-white p-5">
                   <SubjectBadge subject={u.subject} subjectId={u.subjectId} />
-                  <p className="mt-3 font-semibold text-[#111111]">{u.unit}</p>
+                  <p className="mt-3 font-semibold text-ink">{u.unit}</p>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-[#77736D]">{u.subject}</p>
+                    <p className="text-xs text-slate">{u.subject}</p>
                     <CoverageBadge status={u.status} />
                   </div>
                   <MasteryBar value={u.coverage} caption={`${Math.round(u.coverage * 100)}% covered`} />
-                  {primaryReason(u.reasons) && <p className="mt-1 text-xs text-[#3a3a3a]">{primaryReason(u.reasons)}</p>}
+                  {primaryReason(u.reasons) && <p className="mt-1 text-xs text-body-muted">{primaryReason(u.reasons)}</p>}
                 </Link>
               </li>
             ))}

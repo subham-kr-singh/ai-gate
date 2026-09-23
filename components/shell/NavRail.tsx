@@ -11,12 +11,12 @@ export function NavRail({ active = "today", initial = "G" }: { active?: NavKey; 
   const current = activeFromPath(pathname) ?? active;
 
   return (
-    <aside className="hidden flex-col items-center justify-between border-r border-[#E3E0DA] py-6 lg:flex">
+    <aside className="hidden flex-col items-center justify-between border-r border-line py-6 lg:flex">
       <div className="flex flex-col items-center">
         <Link
           href="/dashboard"
           aria-label="GATE AI — Dashboard"
-          className="mb-5 flex h-9 w-9 items-center justify-center rounded-full bg-[#111111] text-sm font-semibold text-white"
+          className="mb-5 flex h-9 w-9 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white"
         >
           G
         </Link>
@@ -31,7 +31,7 @@ export function NavRail({ active = "today", initial = "G" }: { active?: NavKey; 
                 aria-label={n.label}
                 aria-current={isActive ? "page" : undefined}
                 className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
-                  isActive ? "bg-[#111111] text-white" : "text-[#77736D] hover:bg-[#ECE9E3] hover:text-[#111111]"
+                  isActive ? "bg-ink text-white" : "text-slate hover:bg-control hover:text-ink"
                 }`}
               >
                 {n.icon}
@@ -41,7 +41,7 @@ export function NavRail({ active = "today", initial = "G" }: { active?: NavKey; 
         </nav>
       </div>
       <div
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-[#D0CCF4] text-xs font-semibold"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-lavender text-xs font-semibold"
         title="Signed in"
         aria-hidden="true"
       >
@@ -60,6 +60,7 @@ const PATH_TO_KEY: [RegExp, NavKey][] = [
   [/^\/mistakes/, "mistakes"],
   [/^\/flashcards/, "flashcards"],
   [/^\/reports/, "reports"],
+  [/^\/review/, "review"],
 ];
 
 export function activeFromPath(pathname: string): NavKey | null {

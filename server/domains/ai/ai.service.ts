@@ -15,7 +15,9 @@ import type { AIUsageRecord } from "./types";
  * Configured to use Google Gemini via @ai-sdk/google.
  */
 
-const MODEL = process.env.LLM_MODEL ?? "gemini-1.5-flash";
+// gemini-1.5-flash was retired; 2.5 Flash is the current price-performance
+// model (verified against the Gemini API model list). Override with LLM_MODEL.
+const MODEL = process.env.LLM_MODEL ?? "gemini-2.5-flash";
 const PROVIDER = "google";
 
 import { createGoogle } from "@ai-sdk/google";
@@ -31,6 +33,9 @@ function model() {
 
 // Rough per-model cost table in cents per 1K tokens (input, output).
 const COST_PER_1K_CENTS: Record<string, { in: number; out: number }> = {
+  // 2.5 Flash: $0.30 / $2.50 per 1M tokens -> cents per 1K.
+  "gemini-2.5-flash": { in: 0.03, out: 0.25 },
+  "gemini-2.5-flash-lite": { in: 0.01, out: 0.04 },
   "gemini-1.5-flash": { in: 0.0075, out: 0.03 },
   "gemini-1.5-pro": { in: 0.125, out: 0.5 },
   "gemini-2.0-flash-exp": { in: 0.01, out: 0.04 },

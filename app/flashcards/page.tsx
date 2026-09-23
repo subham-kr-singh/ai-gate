@@ -22,7 +22,7 @@ export default async function FlashcardsPage() {
     >
       <header>
         <h1 className="text-xl font-semibold">Flashcards</h1>
-        <p className="text-sm text-[#77736D]">
+        <p className="text-sm text-slate">
           {totalDue === 0 ? "Nothing due" : `${totalDue} due${totalDue > cards.length ? `, showing the first ${cards.length}` : ""}`}
         </p>
       </header>

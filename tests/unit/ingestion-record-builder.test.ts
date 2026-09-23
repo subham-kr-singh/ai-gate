@@ -27,6 +27,18 @@ describe("parseNatAnswer", () => {
     expect(parseNatAnswer("5 [4,6]")).toEqual({ value: "5", min: 4, max: 6 });
   });
 
+  it("parses a band written as prose", () => {
+    expect(parseNatAnswer("4.24 to 4.26")).toEqual({ value: "4.25", min: 4.24, max: 4.26 });
+  });
+
+  it("treats a worded equal pair as exact", () => {
+    expect(parseNatAnswer("7 to 7")).toEqual({ value: "7" });
+  });
+
+  it("rejects two bare numbers with no separator as ambiguous", () => {
+    expect(parseNatAnswer("4.24 4.26")).toBeNull();
+  });
+
   it("returns null for non-numeric answers and N/A", () => {
     expect(parseNatAnswer("B")).toBeNull();
     expect(parseNatAnswer("N/A")).toBeNull();

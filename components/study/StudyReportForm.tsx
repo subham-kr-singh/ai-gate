@@ -98,8 +98,8 @@ export function StudyReportForm({ units }: { units: UnitOption[] }) {
   if (done) {
     return (
       <section className={`${ui.card} max-w-xl p-6`} aria-live="polite">
-        <h2 className="font-semibold text-[#111111]">Study session saved</h2>
-        <p className="mt-2 text-sm text-[#3a3a3a]">
+        <h2 className="font-semibold text-ink">Study session saved</h2>
+        <p className="mt-2 text-sm text-body-muted">
           {unit?.unit ?? "This unit"} is now {done.status ? STATUS_LABELS[done.status as UnitStatusValue].toLowerCase() : "updated"}.
           {done.decision === "CONTINUE" ? " The evidence says to keep working on it." : " The evidence supports moving on, with revision scheduled."}
         </p>
@@ -111,7 +111,7 @@ export function StudyReportForm({ units }: { units: UnitOption[] }) {
     );
   }
 
-  const label = "mb-1 block text-sm text-[#111111]";
+  const label = "mb-1 block text-sm text-ink";
   return (
     <form onSubmit={submit} className="flex max-w-2xl flex-col gap-6" noValidate>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -147,18 +147,18 @@ export function StudyReportForm({ units }: { units: UnitOption[] }) {
       {unit && (
         <div className="grid gap-4 sm:grid-cols-2">
           <fieldset className={`${ui.card} p-4`}>
-            <legend className="px-1 text-sm font-semibold text-[#111111]">Topics you covered</legend>
+            <legend className="px-1 text-sm font-semibold text-ink">Topics you covered</legend>
             {unit.topics.map((t) => (
-              <label key={t.id} className="flex items-center gap-2 py-1 text-sm text-[#111111]">
+              <label key={t.id} className="flex items-center gap-2 py-1 text-sm text-ink">
                 <input type="checkbox" checked={covered.has(t.id)} onChange={() => toggle(covered, t.id, setCovered)} />
                 {t.name}
               </label>
             ))}
           </fieldset>
           <fieldset className={`${ui.card} p-4`}>
-            <legend className="px-1 text-sm font-semibold text-[#111111]">Topics that felt weak</legend>
+            <legend className="px-1 text-sm font-semibold text-ink">Topics that felt weak</legend>
             {unit.topics.map((t) => (
-              <label key={t.id} className="flex items-center gap-2 py-1 text-sm text-[#111111]">
+              <label key={t.id} className="flex items-center gap-2 py-1 text-sm text-ink">
                 <input type="checkbox" checked={weak.has(t.id)} onChange={() => toggle(weak, t.id, setWeak)} />
                 {t.name}
               </label>
@@ -188,7 +188,7 @@ export function StudyReportForm({ units }: { units: UnitOption[] }) {
         </div>
       </fieldset>
 
-      <label className="flex items-center gap-2 text-sm text-[#111111]">
+      <label className="flex items-center gap-2 text-sm text-ink">
         <input type="checkbox" checked={cont} onChange={(e) => setCont(e.target.checked)} />
         I want to keep working on this unit
       </label>
@@ -196,10 +196,10 @@ export function StudyReportForm({ units }: { units: UnitOption[] }) {
       <label className="text-sm">
         <span className={label}>Notes</span>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} maxLength={2000}
-          className="w-full rounded-[20px] bg-[#ECE9E3] p-4 text-sm text-[#111111] outline-none placeholder-[#9B968E]" placeholder="What was hard? What confused you?" />
+          className="w-full rounded-[20px] bg-control p-4 text-sm text-ink outline-none placeholder-slate-light" placeholder="What was hard? What confused you?" />
       </label>
 
-      {error && <p role="alert" className="text-sm text-[#D98E2B]">{error}</p>}
+      {error && <p role="alert" className="text-sm text-amber">{error}</p>}
       <div>
         <button type="submit" disabled={busy} className={ui.btn}>{busy ? "Saving..." : "Save study session"}</button>
       </div>

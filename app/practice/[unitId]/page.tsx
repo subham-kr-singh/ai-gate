@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/shell/AppShell";
 import { Button } from "@/components/ui/Button";
 import { GATE_EXAM_YEAR } from "@/lib/exam";
+import { apiFetch } from "@/lib/api-fetch";
 
 export default function PracticeLauncherPage({ params }: { params: { unitId: string } }) {
   const router = useRouter();
@@ -15,7 +16,9 @@ export default function PracticeLauncherPage({ params }: { params: { unitId: str
   async function launch() {
     setLoading(true);
     setError(null);
-    const res = await fetch("/api/tests", {
+    // apiFetch never throws, so the button is released even when the request
+    // never reaches the server.
+    const res = await apiFetch<{ test: { id: string } }>("/api/tests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -26,13 +29,11 @@ export default function PracticeLauncherPage({ params }: { params: { unitId: str
       }),
     });
     setLoading(false);
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      setError(body.error ?? "Could not start the quiz.");
+    if (!res.ok || !res.body) {
+      setError(res.error ?? "Could not start the quiz.");
       return;
     }
-    const { test } = await res.json();
-    router.push(`/tests/${test.id}`);
+    router.push(`/tests/${res.body.test.id}`);
   }
 
   return (

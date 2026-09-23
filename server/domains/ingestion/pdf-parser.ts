@@ -106,7 +106,22 @@ function groupIntoLines(items: PdfTextItem[], pageHeight: number): TextLine[] {
       // tabs, answer-key rows); smaller gaps are just run boundaries.
       const gap = prevEnd === null ? 0 : span.x - prevEnd;
       const charWidth = span.fontSize > 0 ? span.fontSize * 0.5 : 4;
-      if (prevEnd !== null && gap > charWidth * 1.2) text += "\t";
+      if (prevEnd !== null) {
+        const prevEndsWithSpace = /\s$/.test(text);
+        const startsWithSpace = /^\s/.test(span.text);
+        // Column break (option tabs, answer-key rows): preserve as a tab.
+        if (gap > charWidth * 1.2) {
+          if (!prevEndsWithSpace) text += "\t";
+        } else if (gap > charWidth * 0.2) {
+          // A real word space that is simply narrower than a tab. Reconstructing
+          // it is essential, not cosmetic: justified body text emits "woman's",
+          // "badminton" as separate runs with no space character between them,
+          // and without this the two glue into "woman'sbadminton".
+          if (!prevEndsWithSpace && !startsWithSpace) text += " ";
+        }
+        // gap <= 0.2 char widths is a split inside one word ("dec" + "lare"),
+        // so nothing is inserted.
+      }
       text += span.text;
       prevEnd = span.x + span.width;
     }

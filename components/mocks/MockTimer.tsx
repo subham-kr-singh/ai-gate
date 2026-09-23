@@ -67,8 +67,8 @@ export function MockTimer({ deadlineAtMs, getServerNow, onExpire }: Props) {
       <div
         role="timer"
         aria-label="Time remaining"
-        className={`inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold tabular-nums text-[#111111] ${
-          urgent ? 'bg-[#D98E2B]' : 'bg-[#ECE9E3]'
+        className={`inline-flex h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold tabular-nums text-ink ${
+          urgent ? 'bg-amber' : 'bg-control'
         }`}
       >
         <Clock size={15} aria-hidden />

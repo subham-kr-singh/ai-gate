@@ -103,34 +103,34 @@ export function DppQuestionCard({
       />
 
       {error && (
-        <p role="alert" className="rounded-[20px] bg-[#F4DEB4] p-4 text-sm text-[#111111]">
+        <p role="alert" className="rounded-[20px] bg-butter p-4 text-sm text-ink">
           {error}
         </p>
       )}
 
       {outcome ? (
-        <section aria-live="polite" className="rounded-[20px] border border-[#E3E0DA] bg-white p-6">
+        <section aria-live="polite" className="rounded-[20px] border border-line bg-white p-6">
           <p
             className={`text-sm font-semibold ${
-              outcome.correct ? "text-[#0E8074]" : "text-[#D98E2B]"
+              outcome.correct ? "text-teal" : "text-amber"
             }`}
           >
             {outcome.correct ? "Correct" : "Not correct"}
           </p>
           {question.solution ? (
             <div className="mt-3">
-              <h2 className="text-sm font-semibold text-[#111111]">Solution</h2>
-              <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-[#3a3a3a]">
+              <h2 className="text-sm font-semibold text-ink">Solution</h2>
+              <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-body-muted">
                 {question.solution}
               </p>
             </div>
           ) : (
-            <p className="mt-2 text-sm text-[#77736D]">
+            <p className="mt-2 text-sm text-slate">
               No worked solution is stored for this question.
             </p>
           )}
           {alreadyAnswered && (
-            <p className="mt-2 text-sm text-[#77736D]">
+            <p className="mt-2 text-sm text-slate">
               This question was already answered earlier today.
             </p>
           )}
@@ -140,7 +140,7 @@ export function DppQuestionCard({
           type="button"
           onClick={submit}
           disabled={busy || isBlank}
-          className="h-11 rounded-full bg-[#111111] text-sm font-medium text-white disabled:opacity-50"
+          className="h-11 rounded-full bg-ink text-sm font-medium text-white disabled:opacity-50"
         >
           {busy ? "Checking…" : "Submit answer"}
         </button>
@@ -151,28 +151,28 @@ export function DppQuestionCard({
           {nextHref ? (
             <Link
               href={nextHref as never}
-              className="inline-flex h-11 items-center rounded-full bg-[#111111] px-6 text-sm font-medium text-white"
+              className="inline-flex h-11 items-center rounded-full bg-ink px-6 text-sm font-medium text-white"
             >
               Next question
             </Link>
           ) : (
             <Link
               href="/practice/dpp"
-              className="inline-flex h-11 items-center rounded-full bg-[#0E8074] px-6 text-sm font-medium text-white"
+              className="inline-flex h-11 items-center rounded-full bg-teal px-6 text-sm font-medium text-white"
             >
               Set complete — back to today&apos;s practice
             </Link>
           )}
           <Link
             href="/practice/dpp"
-            className="inline-flex h-11 items-center rounded-full border border-[#E3E0DA] px-6 text-sm text-[#111111]"
+            className="inline-flex h-11 items-center rounded-full border border-line px-6 text-sm text-ink"
           >
             All questions
           </Link>
         </div>
       )}
 
-      <p className="text-xs text-[#9B968E]">
+      <p className="text-xs text-slate-light">
         {question.year ? `GATE ${question.year}` : `Aligned to GATE ${question.examYear}`} ·{" "}
         {question.type}
       </p>

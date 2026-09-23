@@ -1,5 +1,7 @@
 import type { Candidate, PlannerAction, Reason } from "@/server/domains/planner/planner.types";
 import { ACTION_LABEL, describeReason, reasonTone } from "@/server/domains/planner/reasons";
+import { palette } from "@/lib/design-tokens";
+import { PASTEL_CLASS, PASTEL_HEX } from "@/components/ui/tokens";
 
 export { ACTION_LABEL, describeReason, reasonTone };
 
@@ -96,13 +98,9 @@ const SUBJECTS: [RegExp, string, keyof typeof PASTEL_CLASS][] = [
   [/network/i, "CN", "sky"],
 ];
 
-export const PASTEL_CLASS = {
-  butter: "bg-[#F4DEB4]",
-  sky: "bg-[#C7E3F5]",
-  lavender: "bg-[#D0CCF4]",
-  coral: "bg-[#F4C1C4]",
-  mint: "bg-[#BDEBD9]",
-} as const;
+export type PastelTone = "butter" | "sky" | "lavender" | "coral" | "mint";
+
+export { PASTEL_CLASS, PASTEL_HEX };
 
 export function subjectBadge(name: string | null): { code: string; fill: string } {
   const hit = name ? SUBJECTS.find(([re]) => re.test(name)) : undefined;

@@ -13,7 +13,7 @@ const KINDS = [
   ["MISTAKE", "From a mistake"],
 ] as const;
 
-const field = `w-full rounded-[20px] bg-[#ECE9E3] px-4 py-3 text-sm outline-none placeholder:text-[#9B968E] ${focusRing}`;
+const field = `w-full rounded-[20px] bg-control px-4 py-3 text-sm outline-none placeholder:text-slate-light ${focusRing}`;
 
 export function NewFlashcardForm() {
   const refreshSoon = useDelayedRefresh();
@@ -51,9 +51,9 @@ export function NewFlashcardForm() {
 
   return (
     <form onSubmit={add} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-xs text-[#77736D]">
+      <label className="flex flex-col gap-1 text-xs text-slate">
         Type
-        <select className={`h-10 rounded-full bg-[#ECE9E3] px-4 text-sm text-[#111111] outline-none ${focusRing}`} value={kind} onChange={(e) => setKind(e.target.value)}>
+        <select className={`h-10 rounded-full bg-control px-4 text-sm text-ink outline-none ${focusRing}`} value={kind} onChange={(e) => setKind(e.target.value)}>
           {KINDS.map(([v, l]) => (
             <option key={v} value={v}>
               {l}
@@ -61,18 +61,18 @@ export function NewFlashcardForm() {
           ))}
         </select>
       </label>
-      <label className="flex flex-col gap-1 text-xs text-[#77736D]">
+      <label className="flex flex-col gap-1 text-xs text-slate">
         Question
         <textarea className={field} rows={3} value={front} onChange={(e) => setFront(e.target.value)} placeholder="When does LRU differ from FIFO?" />
       </label>
-      <label className="flex flex-col gap-1 text-xs text-[#77736D]">
+      <label className="flex flex-col gap-1 text-xs text-slate">
         Answer
         <textarea className={field} rows={3} value={back} onChange={(e) => setBack(e.target.value)} placeholder="LRU evicts the page unused longest; FIFO evicts the oldest loaded." />
       </label>
       <button type="submit" className={pillDark} disabled={busy || !front.trim() || !back.trim()}>
         Add card
       </button>
-      <p role="status" aria-live="polite" className={`min-h-4 text-xs ${msg?.tone === "error" ? "text-[#D98E2B]" : "text-[#77736D]"}`}>
+      <p role="status" aria-live="polite" className={`min-h-4 text-xs ${msg?.tone === "error" ? "text-amber" : "text-slate"}`}>
         {msg?.text}
       </p>
     </form>

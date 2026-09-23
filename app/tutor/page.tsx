@@ -103,8 +103,8 @@ export default function TutorPage() {
     <AppShell active="today" width="reading">
       <div className="flex flex-col gap-6">
         <header>
-          <h1 className="text-xl font-semibold text-[#111111]">Tutor</h1>
-          <p className="mt-1 text-sm text-[#77736D]">
+          <h1 className="text-xl font-semibold text-ink">Tutor</h1>
+          <p className="mt-1 text-sm text-slate">
             Ask about your preparation or the syllabus. Answers use your real
             numbers and cited sources — and any change to your plan waits for
             your confirmation.
@@ -162,7 +162,7 @@ function TutorChatFromQuery() {
 function ChatSkeleton() {
   return (
     <div className="flex flex-col gap-4" aria-busy="true">
-      <div className="h-28 animate-pulse rounded-[20px] bg-[#ECE9E3]" />
+      <div className="h-28 animate-pulse rounded-[20px] bg-control" />
     </div>
   );
 }
@@ -223,12 +223,12 @@ function TutorChat({ presetMessage }: { presetMessage?: string | null }) {
     <div className="flex flex-col gap-4">
       {turns.length === 0 && (
         <div className={ui.card + " p-5"}>
-          <p className="text-sm text-[#3a3a3a]">Try one of these to start:</p>
+          <p className="text-sm text-body-muted">Try one of these to start:</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {STARTERS.map((s) => (
               <button
                 key={s}
-                className="h-9 rounded-full border border-[#E3E0DA] px-4 text-sm text-[#111111] hover:bg-[#ECE9E3]"
+                className="h-9 rounded-full border border-line px-4 text-sm text-ink hover:bg-control"
                 onClick={() => send(s)}
                 disabled={busy}
               >
@@ -243,42 +243,42 @@ function TutorChat({ presetMessage }: { presetMessage?: string | null }) {
         {turns.map((turn, i) =>
           turn.role === "student" ? (
             <li key={i} className="flex justify-end">
-              <p className="max-w-[85%] rounded-[20px] bg-[#111111] px-4 py-2.5 text-sm text-white">
+              <p className="max-w-[85%] rounded-[20px] bg-ink px-4 py-2.5 text-sm text-white">
                 {turn.text}
               </p>
             </li>
           ) : turn.role === "notice" ? (
             <li
               key={i}
-              className="rounded-[16px] border border-[#D98E2B] bg-[#F4DEB4]/40 p-3 text-sm text-[#111111]"
+              className="rounded-[16px] border border-amber bg-butter/40 p-3 text-sm text-ink"
             >
               {turn.text}
             </li>
           ) : (
             <li key={i} className={ui.card + " p-5"}>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#222222]">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-soft">
                 {turn.reply.answer}
               </p>
 
               {turn.reply.degraded && (
-                <p className="mt-3 text-xs text-[#D98E2B]">
+                <p className="mt-3 text-xs text-amber">
                   Generated from your stored data only — the explanation service
                   was unavailable.
                 </p>
               )}
 
               {turn.reply.citations.length > 0 && (
-                <div className="mt-4 border-t border-[#E3E0DA] pt-3">
-                  <p className="text-xs font-semibold text-[#77736D]">Sources</p>
+                <div className="mt-4 border-t border-line pt-3">
+                  <p className="text-xs font-semibold text-slate">Sources</p>
                   <ul className="mt-2 flex flex-col gap-2">
                     {turn.reply.citations.map((c, ci) => (
-                      <li key={c.url + ci} className="text-xs text-[#77736D]">
-                        <span className="text-[#111111]">[{ci + 1}]</span>{" "}
+                      <li key={c.url + ci} className="text-xs text-slate">
+                        <span className="text-ink">[{ci + 1}]</span>{" "}
                         <a
                           href={c.url}
                           target="_blank"
                           rel="noreferrer noopener"
-                          className="text-[#0E8074] underline decoration-[#E3E0DA] underline-offset-2"
+                          className="text-teal underline decoration-line underline-offset-2"
                         >
                           {c.title}
                           {c.section ? ` — ${c.section}` : ""}
@@ -308,7 +308,7 @@ function TutorChat({ presetMessage }: { presetMessage?: string | null }) {
         }}
       >
         <textarea
-          className="min-h-[52px] flex-1 rounded-[16px] border border-[#E3E0DA] p-3 text-sm outline-none focus:ring-2 focus:ring-[#0E8074]"
+          className="min-h-[52px] flex-1 rounded-[16px] border border-line p-3 text-sm outline-none focus:ring-2 focus:ring-teal"
           placeholder="Ask about your progress, or say you feel unsure about a unit…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -328,7 +328,7 @@ function TutorChat({ presetMessage }: { presetMessage?: string | null }) {
           {busy ? "Thinking…" : "Send"}
         </button>
       </form>
-      <p className="text-xs text-[#9B968E]">
+      <p className="text-xs text-slate-light">
         The tutor reads your stored progress, plus material a scheduled job
         fetched from the internet. It never changes your plan without your
         confirmation.
@@ -369,14 +369,14 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
   }
 
   return (
-    <div className="mt-4 rounded-[16px] border border-[#0E8074]/40 bg-[#BDEBD9]/25 p-4">
-      <p className="text-sm font-semibold text-[#111111]">{proposal.title}</p>
-      <p className="mt-1 text-sm text-[#3a3a3a]">{proposal.detail}</p>
+    <div className="mt-4 rounded-[16px] border border-teal/40 bg-mint/25 p-4">
+      <p className="text-sm font-semibold text-ink">{proposal.title}</p>
+      <p className="mt-1 text-sm text-body-muted">{proposal.detail}</p>
 
       {state === "done" ? (
         <div className="mt-3">
-          <p className="text-xs font-semibold text-[#0E8074]">Applied</p>
-          <ul className="mt-1 list-inside list-disc text-xs text-[#3a3a3a]">
+          <p className="text-xs font-semibold text-teal">Applied</p>
+          <ul className="mt-1 list-inside list-disc text-xs text-body-muted">
             {effects.map((e) => (
               <li key={e}>{e}</li>
             ))}
@@ -392,7 +392,7 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
         </button>
       )}
 
-      {error && <p className="mt-2 text-xs text-[#D98E2B]">{error}</p>}
+      {error && <p className="mt-2 text-xs text-amber">{error}</p>}
     </div>
   );
 }
@@ -453,13 +453,13 @@ function SessionDraft() {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm text-[#77736D]">
+      <p className="text-sm text-slate">
         Describe what you studied in your own words. I&apos;ll draft a study
         report — you review and confirm it before anything updates your progress.
       </p>
 
       <textarea
-        className="min-h-[100px] w-full rounded-[16px] border border-[#E3E0DA] p-3 text-sm outline-none focus:ring-2 focus:ring-[#0E8074]"
+        className="min-h-[100px] w-full rounded-[16px] border border-line p-3 text-sm outline-none focus:ring-2 focus:ring-teal"
         placeholder='e.g. "Finished OS Unit 2 but page replacement is confusing. Got 9/15 questions right, still mixing up FIFO and LRU."'
         value={message}
         onChange={(e) => setMessage(e.target.value)}
@@ -473,7 +473,7 @@ function SessionDraft() {
       </button>
 
       {unavailableReason && (
-        <div className="rounded-[16px] border border-[#D98E2B] bg-[#F4DEB4]/40 p-4 text-sm text-[#111111]">
+        <div className="rounded-[16px] border border-amber bg-butter/40 p-4 text-sm text-ink">
           {unavailableReason}
         </div>
       )}
@@ -481,14 +481,14 @@ function SessionDraft() {
       {draft && (
         <div className={ui.card + " flex flex-col gap-4 p-5"}>
           <div className="flex items-center justify-between">
-            <p className="font-semibold text-[#111111]">Study report draft</p>
-            <span className="text-xs text-[#77736D]">
+            <p className="font-semibold text-ink">Study report draft</p>
+            <span className="text-xs text-slate">
               Extraction confidence: {Math.round(draft.extractionConfidence * 100)}%
             </span>
           </div>
 
           {draft.ambiguousFields.length > 0 && (
-            <p className="text-xs text-[#D98E2B]">
+            <p className="text-xs text-amber">
               Please check: {draft.ambiguousFields.join(", ")}
             </p>
           )}
@@ -583,7 +583,7 @@ function SessionDraft() {
           </Field>
 
           <button
-            className="h-10 self-start rounded-full bg-[#0E8074] px-5 text-sm text-white disabled:opacity-50"
+            className="h-10 self-start rounded-full bg-teal px-5 text-sm text-white disabled:opacity-50"
             onClick={handleConfirm}
             disabled={confirmState === "saving" || confirmState === "saved"}
           >
@@ -594,7 +594,7 @@ function SessionDraft() {
                 : "Confirm & update progress"}
           </button>
           {confirmState === "error" && (
-            <p className="text-xs text-[#D98E2B]">
+            <p className="text-xs text-amber">
               Couldn&apos;t save — try the manual Quick Study Report form.
             </p>
           )}
@@ -605,13 +605,13 @@ function SessionDraft() {
         .input {
           width: 100%;
           border-radius: 10px;
-          border: 1px solid #E3E0DA;
+          border: 1px solid var(--line);
           padding: 8px 10px;
           font-size: 14px;
           outline: none;
         }
         .input:focus {
-          box-shadow: 0 0 0 2px #0E8074;
+          box-shadow: 0 0 0 2px var(--teal);
         }
       `}</style>
     </div>
@@ -620,7 +620,7 @@ function SessionDraft() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-1 text-xs text-[#77736D]">
+    <label className="flex flex-col gap-1 text-xs text-slate">
       {label}
       {children}
     </label>

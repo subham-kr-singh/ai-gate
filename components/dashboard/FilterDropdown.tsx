@@ -92,11 +92,12 @@ export function FilterDropdown<T extends string>({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
+        aria-activedescendant={open && active >= 0 ? `${listId}-opt-${active}` : undefined}
         aria-label={srLabel}
         onClick={() => setOpen((o) => !o)}
         onKeyDown={onKeyDown}
         className={`flex h-10 items-center gap-2 rounded-full px-4 text-sm ${
-          filtered ? "bg-[#111111] text-white" : "bg-[#ECE9E3] text-[#111111]"
+          filtered ? "bg-ink text-white" : "bg-control text-ink"
         }`}
       >
         <span className="max-w-[11rem] truncate">{label}</span>
@@ -110,7 +111,7 @@ export function FilterDropdown<T extends string>({
           id={listId}
           role="listbox"
           aria-label={srLabel}
-          className="absolute left-0 top-12 z-20 m-0 max-h-72 w-56 list-none overflow-y-auto rounded-[16px] border border-[#E3E0DA] bg-white p-1"
+          className="absolute left-0 top-12 z-20 m-0 max-h-72 w-56 list-none overflow-y-auto rounded-[16px] border border-line bg-white p-1"
         >
           {entries.map((entry, i) => {
             const selected = entry.value === value;
@@ -118,16 +119,17 @@ export function FilterDropdown<T extends string>({
               <li key={entry.value ?? "__all"} role="none">
                 <button
                   type="button"
+                  id={`${listId}-opt-${i}`}
                   role="option"
                   aria-selected={selected}
                   onPointerEnter={() => setActive(i)}
                   onClick={() => commit(entry.value)}
                   className={`flex w-full items-center justify-between gap-2 rounded-[12px] px-3 py-2 text-left text-sm ${
-                    i === active ? "bg-[#ECE9E3]" : ""
-                  } ${selected ? "font-medium text-[#111111]" : "text-[#3a3a3a]"}`}
+                    i === active ? "bg-control" : ""
+                  } ${selected ? "font-medium text-ink" : "text-body-muted"}`}
                 >
                   <span className="truncate">{entry.label}</span>
-                  {entry.hint && <span className="shrink-0 text-xs text-[#77736D]">{entry.hint}</span>}
+                  {entry.hint && <span className="shrink-0 text-xs text-slate">{entry.hint}</span>}
                   {selected && <span className="sr-only">(selected)</span>}
                 </button>
               </li>

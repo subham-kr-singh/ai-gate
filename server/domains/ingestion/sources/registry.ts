@@ -6,9 +6,14 @@
  */
 import { ExamSideAdapter } from "./examside.adapter";
 import { GopdfsAdapter } from "./gopdfs.adapter";
+import { OfficialArchiveAdapter } from "./official-archive.adapter";
 import type { SourceAdapter } from "./types";
 
-const ADAPTERS: SourceAdapter[] = [new GopdfsAdapter(), new ExamSideAdapter()];
+const ADAPTERS: SourceAdapter[] = [
+  new GopdfsAdapter(),
+  new ExamSideAdapter(),
+  new OfficialArchiveAdapter(),
+];
 
 const BY_ID = new Map(ADAPTERS.map((a) => [a.id, a]));
 

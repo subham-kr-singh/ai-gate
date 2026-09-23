@@ -21,14 +21,14 @@ export default async function PracticePage() {
   return (
     <AppShell active="practice" initial={(user.name ?? user.email)[0]?.toUpperCase()}>
       <header>
-        <h1 className="text-xl font-semibold text-[#111111]">Practice</h1>
-        <p className="mt-1 max-w-[70ch] text-sm text-[#77736D]">
+        <h1 className="text-xl font-semibold text-ink">Practice</h1>
+        <p className="mt-1 max-w-[70ch] text-sm text-slate">
           Your daily set is built from weak concepts, prerequisites, revision due and past mistakes.
           Or start a topic quiz on any single unit.
         </p>
       </header>
 
-      <section aria-labelledby="dpp" className="rounded-[24px] bg-[#0E8074] p-7 text-white md:p-8">
+      <section aria-labelledby="dpp" className="rounded-[24px] bg-teal p-7 text-white md:p-8">
         <h2 id="dpp" className="font-semibold leading-[1.05]" style={{ fontSize: "clamp(20px,2.2vw,28px)" }}>
           Today&apos;s practice set
         </h2>
@@ -37,7 +37,7 @@ export default async function PracticePage() {
         </p>
         <Link
           href="/practice/dpp"
-          className="mt-5 inline-flex h-10 items-center rounded-full bg-white px-5 text-sm font-medium text-[#111111]"
+          className="mt-5 inline-flex h-10 items-center rounded-full bg-white px-5 text-sm font-medium text-ink"
         >
           Open the daily set
         </Link>
@@ -45,23 +45,23 @@ export default async function PracticePage() {
 
       <section aria-labelledby="units">
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 id="units" className="font-semibold text-[#111111]">
+          <h2 id="units" className="font-semibold text-ink">
             Topic quiz by unit
           </h2>
-          <span className="text-sm text-[#77736D]">{units.length} units</span>
+          <span className="text-sm text-slate">{units.length} units</span>
         </div>
         <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2">
           {units.map((u) => (
             <li key={u.unitId}>
               <Link
                 href={`/practice/${u.unitId}`}
-                className="flex h-full flex-col justify-between rounded-[20px] border border-[#E3E0DA] bg-white p-5 transition-colors hover:border-[#111111]"
+                className="flex h-full flex-col justify-between rounded-[20px] border border-line bg-white p-5 transition-colors hover:border-ink"
               >
                 <div>
-                  <p className="text-xs text-[#77736D]">{u.subject}</p>
-                  <p className="mt-0.5 font-semibold text-[#111111]">{u.unit}</p>
+                  <p className="text-xs text-slate">{u.subject}</p>
+                  <p className="mt-0.5 font-semibold text-ink">{u.unit}</p>
                 </div>
-                <span className="mt-3 text-sm text-[#111111] underline underline-offset-2">
+                <span className="mt-3 text-sm text-ink underline underline-offset-2">
                   Start topic quiz
                 </span>
               </Link>
