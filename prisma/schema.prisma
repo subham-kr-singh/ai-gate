@@ -1157,3 +1157,39 @@ model TutorActionLog {
 
   @@index([userId, createdAt])
 }
+
+/// Staging table for the GO-PDFs ingestion pipeline. Parsed records land here
+/// first and are promoted to `Question` only by an explicit human approval in
+/// `scripts/review-drafts.ts` — never automatically, and never directly from
+/// the parser. `rawBlockText` is kept next to `extracted` so a reviewer can
+/// compare the original PDF text against the parsed fields without re-opening
+/// the PDF, and `contentHash` makes re-running ingestion idempotent.
+model IngestedQuestionDraft {
+  id               String      @id @default(cuid())
+  sourcePdfUrl     String
+  sourceReleaseTag String
+  /// `chapter.section.question` id from the source PDF, for traceability.
+  sourceQuestionId String?
+  rawBlockText     String
+  extracted        Json
+  /// Classification evidence (subject/unit/topic/concept ids, confidence and
+  /// rationale). Null when no match cleared the confidence floor.
+  classification   Json?
+  status           DraftStatus @default(DRAFT)
+  validationErrors String[]
+  contentHash      String      @unique
+  createdAt        DateTime    @default(now())
+  reviewedAt       DateTime?
+  /// Set when this draft was promoted into a real Question.
+  promotedQuestionId String?
+
+  @@index([status])
+  @@index([sourceReleaseTag])
+}
+
+enum DraftStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}

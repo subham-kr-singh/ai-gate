@@ -18,3 +18,6 @@ pgkeep.mjs
 
 # TypeScript build cache
 tsconfig.tsbuildinfo
+
+# Downloaded PDF source artifacts (ingestion cache)
+.cache/
