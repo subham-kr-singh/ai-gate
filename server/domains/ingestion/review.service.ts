@@ -39,6 +39,9 @@ export interface DraftRow {
   sourceReliability: string;
   sourceReleaseTag: string;
   sourceQuestionId: string | null;
+  /** The source's unit this question was filed under (GO section, e.g. "1.1"). */
+  sourceUnitId: string | null;
+  sourceUnitLabel: string | null;
   sourcePdfUrl: string | null;
   status: string;
   /** Count only — the detail view carries the strings. */
@@ -93,6 +96,10 @@ function preview(text: string, max = 160): string {
 export interface ListDraftsFilter {
   status?: string;
   adapterId?: string;
+  /** Restrict to one source release, e.g. "gatecse-2026". */
+  releaseTag?: string;
+  /** Restrict to one source unit within the release, e.g. "volume1:2.2". */
+  sourceUnitId?: string;
   /** Only drafts with no validation notes — the ones a reviewer can approve. */
   readyOnly?: boolean;
   limit?: number;
@@ -114,14 +121,20 @@ export async function listDrafts(filter: ListDraftsFilter = {}): Promise<{
   const where = {
     ...(status ? { status } : {}),
     ...(filter.adapterId ? { sourceAdapterId: filter.adapterId } : {}),
+    ...(filter.releaseTag ? { sourceReleaseTag: filter.releaseTag } : {}),
+    ...(filter.sourceUnitId ? { sourceUnitId: filter.sourceUnitId } : {}),
     ...(filter.readyOnly ? { validationErrors: { isEmpty: true } } : {}),
   };
 
   // The chip counts describe the source currently being looked at, so they are
-  // scoped by the adapter but never by status — a status chip that counted only
-  // its own status would always show the same number it filters to. The source
-  // list itself stays global; it is what you switch between.
-  const scopedWhere = filter.adapterId ? { sourceAdapterId: filter.adapterId } : {};
+  // scoped by the adapter (and release/unit, if chosen) but never by status — a
+  // status chip that counted only its own status would always show the same
+  // number it filters to. The source list itself stays global.
+  const scopedWhere = {
+    ...(filter.adapterId ? { sourceAdapterId: filter.adapterId } : {}),
+    ...(filter.releaseTag ? { sourceReleaseTag: filter.releaseTag } : {}),
+    ...(filter.sourceUnitId ? { sourceUnitId: filter.sourceUnitId } : {}),
+  };
 
   const [rows, total, grouped, adapterGroups, readyToApprove] = await Promise.all([
     db.ingestedQuestionDraft.findMany({
@@ -134,6 +147,8 @@ export async function listDrafts(filter: ListDraftsFilter = {}): Promise<{
         sourceReliability: true,
         sourceReleaseTag: true,
         sourceQuestionId: true,
+        sourceUnitId: true,
+        sourceUnitLabel: true,
         sourcePdfUrl: true,
         status: true,
         validationErrors: true,
@@ -168,6 +183,8 @@ export async function listDrafts(filter: ListDraftsFilter = {}): Promise<{
       sourceReliability: d.sourceReliability,
       sourceReleaseTag: d.sourceReleaseTag,
       sourceQuestionId: d.sourceQuestionId,
+      sourceUnitId: d.sourceUnitId,
+      sourceUnitLabel: d.sourceUnitLabel,
       sourcePdfUrl: d.sourcePdfUrl,
       status: d.status,
       validationErrorCount: d.validationErrors.length,
@@ -201,6 +218,59 @@ export function validateDraftPayload(
   };
 }
 
+/**
+ * The source units present in the queue, with counts.
+ *
+ * Derived from the staged drafts rather than from the release catalog, because
+ * a unit with no drafts is not worth offering as a filter. `releaseTag` scopes
+ * it to one release so the selector stays short.
+ */
+export async function listStagedUnits(
+  filter: { adapterId?: string; releaseTag?: string } = {}
+): Promise<
+  { sourceUnitId: string; sourceUnitLabel: string | null; releaseTag: string; total: number; ready: number }[]
+> {
+  const where = {
+    sourceUnitId: { not: null },
+    ...(filter.adapterId ? { sourceAdapterId: filter.adapterId } : {}),
+    ...(filter.releaseTag ? { sourceReleaseTag: filter.releaseTag } : {}),
+  };
+
+  const [groups, readyGroups] = await Promise.all([
+    db.ingestedQuestionDraft.groupBy({
+      by: ["sourceUnitId", "sourceUnitLabel", "sourceReleaseTag"],
+      where,
+      _count: { _all: true },
+    }),
+    db.ingestedQuestionDraft.groupBy({
+      by: ["sourceUnitId", "sourceReleaseTag"],
+      where: { ...where, status: "DRAFT", validationErrors: { isEmpty: true } },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const readyByKey = new Map(
+    readyGroups
+      .filter((g) => g.sourceUnitId)
+      .map((g) => [`${g.sourceReleaseTag}::${g.sourceUnitId}`, g._count._all])
+  );
+
+  return groups
+    .filter((g) => g.sourceUnitId)
+    .map((g) => ({
+      sourceUnitId: g.sourceUnitId as string,
+      sourceUnitLabel: g.sourceUnitLabel,
+      releaseTag: g.sourceReleaseTag,
+      total: g._count._all,
+      ready: readyByKey.get(`${g.sourceReleaseTag}::${g.sourceUnitId}`) ?? 0,
+    }))
+    .sort(
+      (a, b) =>
+        a.releaseTag.localeCompare(b.releaseTag) ||
+        a.sourceUnitId.localeCompare(b.sourceUnitId, undefined, { numeric: true })
+    );
+}
+
 export async function getDraft(id: string): Promise<DraftDetail | null> {
   const d = await db.ingestedQuestionDraft.findUnique({ where: { id } });
   if (!d) return null;
@@ -218,6 +288,8 @@ export async function getDraft(id: string): Promise<DraftDetail | null> {
     sourceReliability: d.sourceReliability,
     sourceReleaseTag: d.sourceReleaseTag,
     sourceQuestionId: d.sourceQuestionId,
+    sourceUnitId: d.sourceUnitId,
+    sourceUnitLabel: d.sourceUnitLabel,
     sourcePdfUrl: d.sourcePdfUrl,
     status: d.status,
     validationErrorCount: d.validationErrors.length,

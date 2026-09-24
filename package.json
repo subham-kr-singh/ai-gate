@@ -16,7 +16,8 @@
     "drafts": "tsx --env-file=.env scripts/review-drafts.ts",
     "import:questions": "tsx scripts/import-questions.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "ingest:units": "tsx --env-file=.env scripts/ingest.ts --source gopdfs --list-units"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.58",

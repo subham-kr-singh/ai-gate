@@ -24,6 +24,9 @@ export interface DraftRow {
   sourceReliability: string;
   sourceReleaseTag: string;
   sourceQuestionId: string | null;
+  /** The source's unit this question was filed under (GO section, "1.1"). */
+  sourceUnitId: string | null;
+  sourceUnitLabel: string | null;
   sourcePdfUrl: string | null;
   status: string;
   validationErrorCount: number;
@@ -85,17 +88,29 @@ function outcomeMessage(body: { outcome?: string; reason?: string; questionId?: 
   }
 }
 
+export interface UnitOption {
+  sourceUnitId: string;
+  sourceUnitLabel: string | null;
+  releaseTag: string;
+  total: number;
+  ready: number;
+}
+
 export function ReviewQueue({
   initialDrafts,
   initialSummary,
+  initialUnits,
 }: {
   initialDrafts: DraftRow[];
   initialSummary: DraftSummary;
+  initialUnits: UnitOption[];
 }) {
   const [drafts, setDrafts] = useState<DraftRow[]>(initialDrafts);
   const [summary, setSummary] = useState<DraftSummary>(initialSummary);
   const [filter, setFilter] = useState<string>("ALL");
   const [adapter, setAdapter] = useState<string>("ALL");
+  const [unit, setUnit] = useState<string>("ALL");
+  const [units, setUnits] = useState<UnitOption[]>(initialUnits);
   const [selectedId, setSelectedId] = useState<string | null>(initialDrafts[0]?.id ?? null);
   const [detail, setDetail] = useState<DraftDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -104,10 +119,11 @@ export function ReviewQueue({
   const [listError, setListError] = useState<string | null>(null);
 
   const refreshList = useCallback(
-    async (nextFilter = filter, nextAdapter = adapter) => {
+    async (nextFilter = filter, nextAdapter = adapter, nextUnit = unit) => {
       const params = new URLSearchParams({ limit: "100" });
       if (nextFilter !== "ALL") params.set("status", nextFilter);
       if (nextAdapter !== "ALL") params.set("adapter", nextAdapter);
+      if (nextUnit !== "ALL") params.set("unit", nextUnit);
 
       const res = await apiFetch<{ drafts: DraftRow[]; summary: DraftSummary }>(
         `/api/ingestion/drafts?${params}`,
@@ -127,8 +143,24 @@ export function ReviewQueue({
       );
       return res.body.drafts;
     },
-    [filter, adapter]
+    [filter, adapter, unit]
   );
+
+  // The unit list is scoped to the adapter, so switching source refreshes it.
+  // A unit that no longer exists in the new scope resets to "All units" rather
+  // than showing an empty queue.
+  const loadUnits = useCallback(async (nextAdapter: string) => {
+    const params = new URLSearchParams({ units: "1" });
+    if (nextAdapter !== "ALL") params.set("adapter", nextAdapter);
+    const res = await apiFetch<{ units: UnitOption[] }>(
+      `/api/ingestion/drafts?${params}`,
+      {},
+      "Could not load the unit list."
+    );
+    if (!res.ok || !res.body) return;
+    setUnits(res.body.units);
+    setUnit((cur) => (cur === "ALL" || res.body!.units.some((u) => u.sourceUnitId === cur) ? cur : "ALL"));
+  }, []);
 
   // Load the selected draft's full evidence. Called on selection and after a
   // decision, because a decision changes what the detail pane should say.
@@ -250,7 +282,9 @@ export function ReviewQueue({
             value={adapter}
             onChange={(e) => {
               setAdapter(e.target.value);
-              void refreshList(filter, e.target.value);
+              void loadUnits(e.target.value);
+              void refreshList(filter, e.target.value, "ALL");
+              setUnit("ALL");
             }}
             className="h-9 rounded-full bg-control px-4 text-sm text-ink-soft outline-none"
             aria-label="Filter by source"
@@ -258,6 +292,26 @@ export function ReviewQueue({
             {adapters.map((a) => (
               <option key={a} value={a}>
                 {a === "ALL" ? "All sources" : a}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {units.length > 0 && (
+          <select
+            value={unit}
+            onChange={(e) => {
+              setUnit(e.target.value);
+              void refreshList(filter, adapter, e.target.value);
+            }}
+            className="h-9 max-w-[18rem] rounded-full bg-control px-4 text-sm text-ink-soft outline-none"
+            aria-label="Filter by source unit"
+          >
+            <option value="ALL">All units</option>
+            {units.map((u) => (
+              <option key={`${u.releaseTag}:${u.sourceUnitId}`} value={u.sourceUnitId}>
+                {u.sourceUnitId} · {u.sourceUnitLabel ?? "untitled"} ({u.total} staged
+                {u.ready > 0 ? `, ${u.ready} ready` : ""})
               </option>
             ))}
           </select>
@@ -300,6 +354,12 @@ export function ReviewQueue({
                     <span>{STATUS_LABEL[d.status] ?? d.status}</span>
                     <span aria-hidden>·</span>
                     <span>{d.sourceAdapterId}</span>
+                    {d.sourceUnitId && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <span className="text-ink-soft">{d.sourceUnitId}</span>
+                      </>
+                    )}
                     <span aria-hidden>·</span>
                     <span>{shortDate(d.createdAt)}</span>
                     {d.validationErrorCount > 0 && (

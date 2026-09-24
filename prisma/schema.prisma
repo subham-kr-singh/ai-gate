@@ -1176,6 +1176,14 @@ model IngestedQuestionDraft {
   sourceReleaseTag String
   /// `chapter.section.question` id from the source PDF, for traceability.
   sourceQuestionId String?
+  /// The source's own unit key this question was filed under — GO's printed
+  /// section number ("1.1"), an ExamSide chapter slug. Grouping by this is
+  /// what "import unit by unit" means; the syllabus ids the mapper resolved
+  /// live in `classification` and are a *different* axis (one source unit
+  /// often maps onto several syllabus units).
+  sourceUnitId     String?
+  /// Human-readable label for `sourceUnitId`, e.g. "Combinatory".
+  sourceUnitLabel  String?
   rawBlockText     String
   /// Normalised statement used for cross-source duplicate detection (§102).
   normalizedStatement String?
@@ -1197,6 +1205,7 @@ model IngestedQuestionDraft {
 
   @@index([status])
   @@index([sourceReleaseTag])
+  @@index([sourceUnitId])
   @@index([sourceAdapterId])
   @@index([sourceReliability])
   @@index([normalizedStatement])

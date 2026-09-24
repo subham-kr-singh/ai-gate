@@ -1,7 +1,7 @@
 import { AppShell } from "@/components/shell/AppShell";
 import { ReviewQueue } from "@/components/review/ReviewQueue";
 import { requireUserId } from "@/server/auth/session";
-import { listDrafts } from "@/server/domains/ingestion/review.service";
+import { listDrafts, listStagedUnits } from "@/server/domains/ingestion/review.service";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Review" };
@@ -12,10 +12,17 @@ export const metadata = { title: "Review" };
  * The pipeline stages extracted questions as drafts; this is where a human
  * decides which become real questions. Nothing here publishes on its own —
  * each row needs an explicit Approve.
+ *
+ * The unit list is loaded with the queue so the filter is usable on first
+ * paint; a unit-wise import can file thousands of drafts, and finding one
+ * section's worth is otherwise a scroll.
  */
 export default async function ReviewPage() {
   await requireUserId();
-  const { drafts, summary } = await listDrafts({ limit: 100 });
+  const [{ drafts, summary }, units] = await Promise.all([
+    listDrafts({ limit: 100 }),
+    listStagedUnits(),
+  ]);
 
   return (
     <AppShell active="review" width="wide">
@@ -26,7 +33,7 @@ export default async function ReviewPage() {
         </p>
       </header>
 
-      <ReviewQueue initialDrafts={drafts} initialSummary={summary} />
+      <ReviewQueue initialDrafts={drafts} initialSummary={summary} initialUnits={units} />
     </AppShell>
   );
 }

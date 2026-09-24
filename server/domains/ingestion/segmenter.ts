@@ -373,3 +373,114 @@ export function blocksForTopic(seg: SegmentedVolume, topicTitle: string): Questi
 export function chaptersForVolume(seg: SegmentedVolume): TocChapter[] {
   return seg.chapters;
 }
+
+
+// ---------------------------------------------------------------------
+// Unit-wise grouping (architecture §101–103)
+//
+// A GO volume is printed as chapter -> section -> question. "Unit" in this
+// app is a syllabus unit, and GO's sections line up with syllabus units much
+// more closely than its chapters do: chapter 1 "Discrete Mathematics" spans
+// several units, while section 1.1 "Combinatory" is one. Grouping by chapter
+// would merge several unrelated units into one import, so the unit key is the
+// section, with the chapter kept as the display group.
+// ---------------------------------------------------------------------
+
+export interface VolumeUnit {
+  /**
+   * Stable id within the release. A single-volume release uses the printed
+   * section number ("1.1"); a multi-volume release prefixes the volume
+   * ("volume1:2.2"), because each volume numbers its chapters from 1 —
+   * volume 1's "2.2" is Graph Theory and volume 2's is CO & Architecture,
+   * and without the prefix their drafts would collide in the review queue.
+   */
+  id: string;
+  /** The printed section number, e.g. "1.1". Always human-traceable. */
+  section: string;
+  /** The section title as printed, e.g. "Combinatory". */
+  label: string;
+  /** Chapter number this section belongs to. */
+  chapter: number;
+  chapterTitle: string | null;
+  /** TOC's expected question count for this section, when printed. */
+  expectedCount: number | null;
+  /** Page the TOC says the section starts on. */
+  page: number | null;
+  blocks: QuestionBlock[];
+  /** Blocks whose source text was complete enough to attempt a publish. */
+  fullyTextual: number;
+  /** Blocks carrying rasterised math, which caps what can be extracted. */
+  withImages: number;
+  /** Distinct exams the section's questions came from. */
+  exams: string[];
+}
+
+/**
+ * Groups a volume's blocks into unit-sized buckets.
+ *
+ * Blocks are bucketed by their printed section number. A block whose section
+ * never appeared as a heading still gets a bucket (keyed off its own section
+ * number) rather than being dropped — silently losing questions is worse than
+ * showing a unit with no TOC row.
+ *
+ * `volumeKey` is only needed when a release ships more than one PDF; see
+ * `VolumeUnit.id`.
+ */
+export function groupIntoUnits(seg: SegmentedVolume, opts?: { volumeKey?: string }): VolumeUnit[] {
+  const tocBySection = new Map<string, TocTopic>();
+  const chapterByNumber = new Map<number, TocChapter>();
+  for (const ch of seg.chapters) {
+    chapterByNumber.set(ch.number, ch);
+    for (const t of ch.topics) tocBySection.set(t.section, t);
+  }
+
+  const bySection = new Map<string, QuestionBlock[]>();
+  const order: string[] = [];
+  for (const block of seg.blocks) {
+    // `section` is `c.s`; fall back to a chapter bucket when a volume prints
+    // questions with no section number at all.
+    const key = block.section || `${block.chapter}.0`;
+    if (!bySection.has(key)) {
+      bySection.set(key, []);
+      order.push(key);
+    }
+    bySection.get(key)!.push(block);
+  }
+
+  // Sort numerically ("1.10" after "1.9") so the import order matches the book
+  // rather than lexicographic string order.
+  order.sort((a, b) => {
+    const [ac, as] = a.split(".").map(Number);
+    const [bc, bs] = b.split(".").map(Number);
+    return (ac ?? 0) - (bc ?? 0) || (as ?? 0) - (bs ?? 0);
+  });
+
+  const prefix = opts?.volumeKey ? `${opts.volumeKey}:` : "";
+
+  return order.map((key) => {
+    const blocks = bySection.get(key)!;
+    const toc = tocBySection.get(key);
+    const chapterNumber = blocks[0]!.chapter;
+    const chapter = chapterByNumber.get(chapterNumber);
+    const exams = Array.from(
+      new Set(blocks.map((b) => b.examLabel).filter((e): e is string => Boolean(e)))
+    );
+    return {
+      id: `${prefix}${key}`,
+      section: key,
+      label: toc?.title ?? blocks[0]!.sectionTitle ?? blocks[0]!.chapterTitle ?? key,
+      chapter: chapterNumber,
+      chapterTitle: chapter?.title ?? blocks[0]!.chapterTitle ?? null,
+      expectedCount: toc?.expectedCount ?? null,
+      page: toc?.page ?? blocks[0]!.startPage,
+      blocks,
+      fullyTextual: blocks.filter((b) => !b.hasImageContent).length,
+      withImages: blocks.filter((b) => b.hasImageContent).length,
+      exams,
+    };
+  });
+}
+
+export function unitById(units: VolumeUnit[], id: string): VolumeUnit | undefined {
+  return units.find((u) => u.id === id);
+}

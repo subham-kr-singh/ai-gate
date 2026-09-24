@@ -53,6 +53,15 @@ export interface RunOptions {
   publishableOnly: boolean;
   /** Cap on records per unit, for pilots. */
   limit?: number;
+  /**
+   * Files every staged draft under this source unit (GO's printed section
+   * "1.1", an ExamSide chapter slug). Set by importers that walk a source
+   * finer than the adapter's own unit granularity. Left unset by the generic
+   * runner, where the adapter's unit already *is* the finest grouping.
+   */
+  sourceUnitId?: string;
+  /** Display label for `sourceUnitId`. */
+  sourceUnitLabel?: string;
 }
 
 /** Resolves syllabus IDs for one extracted question.
@@ -83,6 +92,97 @@ function subjectCodeFor(q: ExtractedQuestion): string | null {
   return subjectCodeFromHint(q.subjectHint) ?? subjectCodeFromTags(q.sourceTags ?? []);
 }
 
+export type StageOutcome = "staged" | "already-known" | "corroborated" | "skipped";
+
+/**
+ * Persists one assembled record as a draft — the shared tail of the pipeline.
+ *
+ * Extracted from `runUnit` because the unit-wise GO-PDFs import (which walks a
+ * release chapter by chapter) must apply the same dedup and corroboration
+ * rules. Leaving a second copy of this in the importer is how the two paths
+ * would drift into disagreeing about what counts as a duplicate.
+ */
+export async function stageRecord(args: {
+  adapter: SourceAdapter;
+  record: BuiltRecord;
+  extracted: ExtractedQuestion;
+  /** Written at INSERT time; see `RunOptions.sourceUnitId`. */
+  sourceUnitId?: string;
+  sourceUnitLabel?: string;
+}): Promise<{ outcome: StageOutcome; corroborating: boolean; superseded: boolean }> {
+  const { adapter, record, extracted } = args;
+
+  const existingQuestion = await db.question.findUnique({ where: { contentHash: record.contentHash } });
+  const existingDraft = await db.ingestedQuestionDraft.findUnique({
+    where: { contentHash: record.contentHash },
+  });
+  if (existingQuestion || existingDraft) {
+    return { outcome: "already-known", corroborating: false, superseded: false };
+  }
+
+  const corroborating = await findCorroboratingSource({
+    adapterId: adapter.id,
+    statement: extracted.statement,
+    sourceUrl: extracted.sourceUrl ?? null,
+  });
+
+  let superseded = false;
+  if (corroborating) {
+    // §48/§102: when the same question is seen at two tiers, the
+    // higher-reliability sighting is the one that should carry the question.
+    // If the incoming record is the stronger source, the existing draft is
+    // demoted to a corroborating reference rather than both being presented
+    // to the reviewer as independent questions.
+    const incomingRank = RELIABILITY_RANK[adapter.reliability];
+    const existingRank = corroborating.matchedReliability
+      ? RELIABILITY_RANK[corroborating.matchedReliability]
+      : 0;
+    if (incomingRank > existingRank) {
+      await db.ingestedQuestionDraft.update({
+        where: { id: corroborating.matchedId },
+        data: {
+          corroboratingSources: [
+            {
+              adapterId: adapter.id,
+              sourceUrl: extracted.sourceUrl ?? null,
+              similarity: corroborating.similarity,
+              note: `Superseded by higher-reliability source "${adapter.id}" (${adapter.reliability}).`,
+            },
+          ] as unknown as object,
+        },
+      });
+      superseded = true;
+    }
+  }
+
+  await db.ingestedQuestionDraft.create({
+    data: {
+      sourceAdapterId: adapter.id,
+      sourceReliability: adapter.reliability,
+      sourcePdfUrl: record.source.pdfUrl,
+      sourceReleaseTag: record.source.releaseTag,
+      sourceQuestionId: record.sourceQuestionId,
+      sourceUnitId: args.sourceUnitId ?? null,
+      sourceUnitLabel: args.sourceUnitLabel ?? null,
+      rawBlockText: record.rawBlockText,
+      normalizedStatement: normalizeStatement(extracted.statement),
+      extracted: record.extracted as object,
+      classification: (record.classification ?? undefined) as object | undefined,
+      provenance: record.source.provenance as unknown as object,
+      corroboratingSources: corroborating ? ([corroborating] as unknown as object) : undefined,
+      status: "DRAFT",
+      validationErrors: record.errors,
+      contentHash: record.contentHash,
+    },
+  });
+
+  return {
+    outcome: corroborating ? "corroborated" : "staged",
+    corroborating: Boolean(corroborating),
+    superseded,
+  };
+}
+
 /**
  * Runs one unit of one adapter through stages 4-8.
  *
@@ -91,11 +191,28 @@ function subjectCodeFor(q: ExtractedQuestion): string | null {
  *  - cross-source: a different source stated the same question, so this record
  *    is kept as corroborating evidence rather than ignored.
  */
-export async function runUnit(
+export interface Pipeline {
+  /** Runs one extracted question through map -> assemble -> validate -> stage. */
+  processOne(extracted: ExtractedQuestion, unitId: string): Promise<BuiltRecord>;
+  totals: RunTotals;
+  records: BuiltRecord[];
+  /** True once `opts.limit` records have been seen. */
+  limitReached(): boolean;
+  finalize(): void;
+}
+
+/**
+ * Builds the per-record half of the pipeline for one adapter.
+ *
+ * Split out of `runUnit` so the unit-wise GO-PDFs import can drive the same
+ * stages from a different iteration order (release -> chapter -> block) without
+ * reimplementing mapping, validation or staging. `runUnit` remains the generic
+ * path; this is what anything that walks a source itself builds on.
+ */
+export async function createPipeline(
   adapter: SourceAdapter,
-  unit: SourceUnit,
   opts: RunOptions
-): Promise<{ totals: RunTotals; records: BuiltRecord[] }> {
+): Promise<Pipeline> {
   const version = await findActiveSyllabusVersion();
   if (!version) throw new Error("No active SyllabusVersion — run `npm run seed` first.");
   const mapper = createConceptMapper(version.id);
@@ -109,7 +226,7 @@ export async function runUnit(
    * usable at all: a paper PDF carries no subject tag, so every question would
    * otherwise land unresolved. The proposal is never trusted as text — the name
    * the model picks is resolved back to syllabus IDs by the deterministic
-   * matcher, and the record is flagged below so a reviewer knows to look.
+   * matcher, and the record is flagged so a reviewer knows to look.
    */
   async function mapWithAssist(q: ExtractedQuestion) {
     const deterministic = await mapExtracted(mapHints, q);
@@ -130,25 +247,18 @@ export async function runUnit(
     return { mapping, assisted: Boolean(mapping) };
   }
 
-  const totals: RunTotals = {
-    extracted: 0,
-    mapped: 0,
-    publishable: 0,
-    alreadyKnown: 0,
-    corroborated: 0,
-    superseded: 0,
-    llmAssisted: 0,
-    staged: 0,
-    andErrorsByKind: new Map(),
-    yieldPercent: 0,
-  };
+  const totals = emptyTotals();
   const records: BuiltRecord[] = [];
 
-  for await (const batch of adapter.ingestUnit(unit, opts.ctx)) {
-    for (const extracted of batch) {
-      // Checked before the record is counted or assembled, so `--limit 25`
-      // means 25 records rather than 26.
-      if (opts.limit && totals.extracted >= opts.limit) break;
+  return {
+    totals,
+    records,
+    limitReached: () => Boolean(opts.limit && totals.extracted >= opts.limit),
+    finalize: () => {
+      totals.yieldPercent =
+        totals.extracted === 0 ? 0 : Number(((totals.publishable / totals.extracted) * 100).toFixed(1));
+    },
+    async processOne(extracted, unitId) {
       totals.extracted++;
 
       const { mapping, assisted } = await mapWithAssist(extracted);
@@ -160,7 +270,7 @@ export async function runUnit(
         mapping,
         adapterId: adapter.id,
         reliability: adapter.reliability,
-        unitId: unit.id,
+        unitId,
         license: adapter.license,
       });
       records.push(record);
@@ -170,82 +280,52 @@ export async function runUnit(
         totals.andErrorsByKind.set(key, (totals.andErrorsByKind.get(key) ?? 0) + 1);
       }
 
-      if (!record.publishable) continue;
+      if (!record.publishable) return record;
       totals.publishable++;
 
-      if (!opts.persist) continue;
+      if (!opts.persist) return record;
 
-      // Exact-duplicate guard: contentHash is unique across drafts and
-      // questions, so a re-run (or a question in two volumes) is a no-op.
-      const existingQuestion = await db.question.findUnique({ where: { contentHash: record.contentHash } });
-      const existingDraft = await db.ingestedQuestionDraft.findUnique({
-        where: { contentHash: record.contentHash },
+      const { outcome, superseded } = await stageRecord({
+        adapter,
+        record,
+        extracted,
+        sourceUnitId: opts.sourceUnitId,
+        sourceUnitLabel: opts.sourceUnitLabel,
       });
-      if (existingQuestion || existingDraft) {
-        totals.alreadyKnown++;
-        continue;
-      }
-
-      const corroborating = await findCorroboratingSource({
-        adapterId: adapter.id,
-        statement: extracted.statement,
-        sourceUrl: extracted.sourceUrl ?? null,
-      });
-      if (corroborating) {
+      if (outcome === "already-known") totals.alreadyKnown++;
+      else if (outcome === "staged") totals.staged++;
+      else if (outcome === "corroborated") {
         totals.corroborated++;
-        // §48/§102: when the same question is seen at two tiers, the
-        // higher-reliability sighting is the one that should carry the
-        // question. If the incoming record is the stronger source, the
-        // existing draft is demoted to a corroborating reference rather than
-        // both being presented to the reviewer as independent questions.
-        const incomingRank = RELIABILITY_RANK[adapter.reliability];
-        const existingRank = corroborating.matchedReliability
-          ? RELIABILITY_RANK[corroborating.matchedReliability]
-          : 0;
-        if (incomingRank > existingRank) {
-          await db.ingestedQuestionDraft.update({
-            where: { id: corroborating.matchedId },
-            data: {
-              corroboratingSources: [
-                {
-                  adapterId: adapter.id,
-                  sourceUrl: extracted.sourceUrl ?? null,
-                  similarity: corroborating.similarity,
-                  note: `Superseded by higher-reliability source "${adapter.id}" (${adapter.reliability}).`,
-                },
-              ] as unknown as object,
-            },
-          });
-          totals.superseded++;
-        }
+        totals.staged++;
       }
+      if (superseded) totals.superseded++;
+      return record;
+    },
+  };
+}
 
-      await db.ingestedQuestionDraft.create({
-        data: {
-          sourceAdapterId: adapter.id,
-          sourceReliability: adapter.reliability,
-          sourcePdfUrl: record.source.pdfUrl,
-          sourceReleaseTag: record.source.releaseTag,
-          sourceQuestionId: record.sourceQuestionId,
-          rawBlockText: record.rawBlockText,
-          normalizedStatement: normalizeStatement(extracted.statement),
-          extracted: record.extracted as object,
-          classification: (record.classification ?? undefined) as object | undefined,
-          provenance: record.source.provenance as unknown as object,
-          corroboratingSources: corroborating ? ([corroborating] as unknown as object) : undefined,
-          status: "DRAFT",
-          validationErrors: record.errors,
-          contentHash: record.contentHash,
-        },
-      });
-      totals.staged++;
+/**
+ * Runs one unit of one adapter through stages 4-8. Thin wrapper over
+ * `createPipeline`, so the generic path and the unit-wise path cannot drift.
+ */
+export async function runUnit(
+  adapter: SourceAdapter,
+  unit: SourceUnit,
+  opts: RunOptions
+): Promise<{ totals: RunTotals; records: BuiltRecord[] }> {
+  const pipeline = await createPipeline(adapter, opts);
+
+  for await (const batch of adapter.ingestUnit(unit, opts.ctx)) {
+    for (const extracted of batch) {
+      // Checked before the record is counted, so `--limit 25` means 25 records.
+      if (pipeline.limitReached()) break;
+      await pipeline.processOne(extracted, unit.id);
     }
-    if (opts.limit && totals.extracted >= opts.limit) break;
+    if (pipeline.limitReached()) break;
   }
 
-  totals.yieldPercent =
-    totals.extracted === 0 ? 0 : Number(((totals.publishable / totals.extracted) * 100).toFixed(1));
-  return { totals, records };
+  pipeline.finalize();
+  return { totals: pipeline.totals, records: pipeline.records };
 }
 
 export interface MultiRunSummary {

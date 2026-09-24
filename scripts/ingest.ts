@@ -16,8 +16,18 @@
  *   npx tsx scripts/ingest.ts --source gopdfs --unit gatecse-2026 --publishable-only
  *   npx tsx scripts/ingest.ts --source gopdfs --unit gatecse-2026 --dry-run
  *   npx tsx scripts/ingest.ts --source examside --unit dbms --limit 25
+ *
+ * Unit-wise GO-PDFs import (release -> section, architecture §101–103):
+ *   npx tsx scripts/ingest.ts --source gopdfs --list-units --release gatecse-2026
+ *   npx tsx scripts/ingest.ts --source gopdfs --release gatecse-2026 --unit 1.1
+ *   npx tsx scripts/ingest.ts --source gopdfs --release gatecse-2026 --unit 1.1 --unit 2.2
+ *   npx tsx scripts/ingest.ts --source gopdfs --release gatecse-2026 --limit-per-unit 20
  */
 import { resolveAdapters, allAdapters } from "@/server/domains/ingestion/sources/registry";
+import {
+  importReleaseUnits,
+  listReleaseUnits,
+} from "@/server/domains/ingestion/gopdfs-import.service";
 import { runIngestion, type RunTotals } from "@/server/domains/ingestion/runner";
 import { db } from "@/server/db/client";
 import type { IngestContext } from "@/server/domains/ingestion/sources/types";
@@ -25,10 +35,15 @@ import type { IngestContext } from "@/server/domains/ingestion/sources/types";
 interface Args {
   sources: string | undefined;
   unit: string | undefined;
+  /** Every `--unit` given; the unit-wise GO-PDFs import accepts several. */
+  units: string[];
+  release: string | undefined;
   list: boolean;
+  listUnits: boolean;
   dryRun: boolean;
   publishableOnly: boolean;
   limit: number | null;
+  limitPerUnit: number | null;
   throttleMs: number;
 }
 
@@ -38,14 +53,23 @@ function parseArgs(argv: string[]): Args {
     return i >= 0 ? argv[i + 1] : undefined;
   };
   const limitRaw = get("--limit");
+  const perUnitRaw = get("--limit-per-unit");
   const throttleRaw = get("--throttle-ms");
+  const units: string[] = [];
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--unit" && argv[i + 1]) units.push(argv[i + 1]!);
+  }
   return {
     sources: get("--source"),
     unit: get("--unit"),
+    units,
+    release: get("--release"),
     list: argv.includes("--list"),
+    listUnits: argv.includes("--list-units"),
     dryRun: argv.includes("--dry-run"),
     publishableOnly: argv.includes("--publishable-only"),
     limit: limitRaw ? Number(limitRaw) : null,
+    limitPerUnit: perUnitRaw ? Number(perUnitRaw) : null,
     throttleMs: throttleRaw ? Number(throttleRaw) : 1500,
   };
 }
@@ -76,6 +100,73 @@ async function main() {
       const units = await a.listUnits(ctx);
       for (const u of units) console.log(`      - ${u.id}  ${u.label}`);
     }
+    await db.$disconnect();
+    return;
+  }
+
+  // Unit-wise GO-PDFs import. Handled here rather than inside the adapter
+  // because it walks *within* a release (section by section) and needs a
+  // resume/report grain the generic `runIngestion` loop does not model.
+  if (args.sources === "gopdfs" && (args.listUnits || args.release)) {
+    if (!args.release) {
+      throw new Error("--release <tag> is required for a unit-wise import. Run --source gopdfs --list to see tags.");
+    }
+
+    if (args.listUnits) {
+      console.log(`Unit-wise catalog for gopdfs/${args.release}:`);
+      const catalog = await listReleaseUnits(args.release, ctx);
+      let lastChapter: number | null = null;
+      for (const u of catalog.units) {
+        if (u.chapter !== lastChapter) {
+          console.log(`  Chapter ${u.chapter}: ${u.chapterTitle ?? "(untitled)"}  [${u.volume}]`);
+          lastChapter = u.chapter;
+        }
+        console.log(
+          `      - ${u.id.padEnd(6)} ${String(u.blockCount).padStart(4)} block(s), ` +
+            `${String(u.fullyTextual).padStart(4)} fully textual, ` +
+            `expected ${u.expectedCount ?? "-"}, staged ${u.alreadyStaged}  ${u.label}`
+        );
+      }
+      console.log(
+        `\n  ${catalog.totals.units} unit(s), ${catalog.totals.blocks} block(s), ` +
+          `${catalog.totals.fullyTextual} fully textual, ${catalog.totals.alreadyStaged} already staged.`
+      );
+      await db.$disconnect();
+      return;
+    }
+
+    const results = await importReleaseUnits({
+      release: args.release,
+      unitIds: args.units,
+      limitPerUnit: args.limitPerUnit ?? args.limit ?? undefined,
+      persist: !args.dryRun,
+      publishableOnly: args.publishableOnly,
+      ctx,
+    });
+
+    console.log("\nUnit-wise import:");
+    for (const r of results) {
+      console.log(
+        `      ${r.unitId.padEnd(6)} ${r.unitLabel.slice(0, 34).padEnd(34)} ` +
+          `extracted ${String(r.totals.extracted).padStart(4)} | mapped ${String(r.totals.mapped).padStart(4)} | ` +
+          `publishable ${String(r.totals.publishable).padStart(4)} | staged ${String(r.staged).padStart(4)}`
+      );
+    }
+    const grand = results.reduce(
+      (acc, r) => ({
+        extracted: acc.extracted + r.totals.extracted,
+        mapped: acc.mapped + r.totals.mapped,
+        publishable: acc.publishable + r.totals.publishable,
+        staged: acc.staged + r.staged,
+      }),
+      { extracted: 0, mapped: 0, publishable: 0, staged: 0 }
+    );
+    console.log(
+      `      ${"".padEnd(6)} ${"TOTAL".padEnd(34)} extracted ${String(grand.extracted).padStart(4)} | ` +
+        `mapped ${String(grand.mapped).padStart(4)} | publishable ${String(grand.publishable).padStart(4)} | ` +
+        `staged ${String(grand.staged).padStart(4)}`
+    );
+    if (args.dryRun) console.log("      (dry run — nothing written)");
     await db.$disconnect();
     return;
   }
