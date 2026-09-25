@@ -111,6 +111,15 @@ export function ReviewQueue({
   const [adapter, setAdapter] = useState<string>("ALL");
   const [unit, setUnit] = useState<string>("ALL");
   const [units, setUnits] = useState<UnitOption[]>(initialUnits);
+  const ambiguousUnits = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const u of units) seen.set(u.sourceUnitId, (seen.get(u.sourceUnitId) ?? 0) + 1);
+    return new Set([...seen].filter(([, n]) => n > 1).map(([id]) => id));
+  }, [units]);
+  // Which release the selected unit belongs to. Kept beside `unit` rather than
+  // derived from the option list, because the list is refreshed on every source
+  // change and would briefly lose the row that explains the current filter.
+  const [release, setRelease] = useState<string>("ALL");
   const [selectedId, setSelectedId] = useState<string | null>(initialDrafts[0]?.id ?? null);
   const [detail, setDetail] = useState<DraftDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -119,11 +128,16 @@ export function ReviewQueue({
   const [listError, setListError] = useState<string | null>(null);
 
   const refreshList = useCallback(
-    async (nextFilter = filter, nextAdapter = adapter, nextUnit = unit) => {
+    async (nextFilter = filter, nextAdapter = adapter, nextUnit = unit, nextRelease = release) => {
       const params = new URLSearchParams({ limit: "100" });
       if (nextFilter !== "ALL") params.set("status", nextFilter);
       if (nextAdapter !== "ALL") params.set("adapter", nextAdapter);
-      if (nextUnit !== "ALL") params.set("unit", nextUnit);
+      // The release has to travel with the unit: two releases can both print a
+      // section "1.1", and a unit filter without it would match both.
+      if (nextUnit !== "ALL") {
+        params.set("unit", nextUnit);
+        if (nextRelease !== "ALL") params.set("release", nextRelease);
+      }
 
       const res = await apiFetch<{ drafts: DraftRow[]; summary: DraftSummary }>(
         `/api/ingestion/drafts?${params}`,
@@ -143,7 +157,7 @@ export function ReviewQueue({
       );
       return res.body.drafts;
     },
-    [filter, adapter, unit]
+    [filter, adapter, unit, release]
   );
 
   // The unit list is scoped to the adapter, so switching source refreshes it.
@@ -158,9 +172,20 @@ export function ReviewQueue({
       "Could not load the unit list."
     );
     if (!res.ok || !res.body) return;
-    setUnits(res.body.units);
-    setUnit((cur) => (cur === "ALL" || res.body!.units.some((u) => u.sourceUnitId === cur) ? cur : "ALL"));
-  }, []);
+    const nextUnits = res.body.units;
+    setUnits(nextUnits);
+    // Clearing a filter that no longer has a matching row. Done by reading the
+    // current values rather than inside a state updater, because an updater can
+    // run more than once and setting a sibling state from one is not safe.
+    if (unit === "ALL") return;
+    const stillThere = nextUnits.some(
+      (u) => u.sourceUnitId === unit && (release === "ALL" || u.releaseTag === release)
+    );
+    if (!stillThere) {
+      setUnit("ALL");
+      setRelease("ALL");
+    }
+  }, [unit, release]);
 
   // Load the selected draft's full evidence. Called on selection and after a
   // decision, because a decision changes what the detail pane should say.
@@ -282,9 +307,10 @@ export function ReviewQueue({
             value={adapter}
             onChange={(e) => {
               setAdapter(e.target.value);
-              void loadUnits(e.target.value);
-              void refreshList(filter, e.target.value, "ALL");
               setUnit("ALL");
+              setRelease("ALL");
+              void loadUnits(e.target.value);
+              void refreshList(filter, e.target.value, "ALL", "ALL");
             }}
             className="h-9 rounded-full bg-control px-4 text-sm text-ink-soft outline-none"
             aria-label="Filter by source"
@@ -299,18 +325,33 @@ export function ReviewQueue({
 
         {units.length > 0 && (
           <select
-            value={unit}
+            value={unit === "ALL" ? "ALL" : `${release}::${unit}`}
             onChange={(e) => {
-              setUnit(e.target.value);
-              void refreshList(filter, adapter, e.target.value);
+              const picked = e.target.value;
+              if (picked === "ALL") {
+                setUnit("ALL");
+                setRelease("ALL");
+                void refreshList(filter, adapter, "ALL", "ALL");
+                return;
+              }
+              const sep = picked.indexOf("::");
+              const nextRelease = picked.slice(0, sep);
+              const nextUnit = picked.slice(sep + 2);
+              setUnit(nextUnit);
+              setRelease(nextRelease);
+              void refreshList(filter, adapter, nextUnit, nextRelease);
             }}
             className="h-9 max-w-[18rem] rounded-full bg-control px-4 text-sm text-ink-soft outline-none"
             aria-label="Filter by source unit"
           >
             <option value="ALL">All units</option>
             {units.map((u) => (
-              <option key={`${u.releaseTag}:${u.sourceUnitId}`} value={u.sourceUnitId}>
-                {u.sourceUnitId} · {u.sourceUnitLabel ?? "untitled"} ({u.total} staged
+              <option key={`${u.releaseTag}::${u.sourceUnitId}`} value={`${u.releaseTag}::${u.sourceUnitId}`}>
+                {u.sourceUnitId} · {u.sourceUnitLabel ?? "untitled"}
+                {/* Two releases printing the same section would otherwise render
+                    two identical rows, so the release is named only when it is
+                    needed to tell them apart. */}
+                {ambiguousUnits.has(u.sourceUnitId) ? ` — ${u.releaseTag}` : ""} ({u.total} staged
                 {u.ready > 0 ? `, ${u.ready} ready` : ""})
               </option>
             ))}

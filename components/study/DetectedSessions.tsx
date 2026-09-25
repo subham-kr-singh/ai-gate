@@ -84,9 +84,17 @@ export function DetectedSessions() {
 
   if (sessions === null) {
     return (
-      <div className="flex flex-col gap-3" aria-busy="true">
+      <div className="flex flex-col gap-4" aria-busy="true">
+        {/* Mirrors the real card's shape and padding, so swapping the skeleton
+            for data does not shift the rows below it. */}
         {[0, 1].map((i) => (
-          <div key={i} className="h-28 animate-pulse rounded-[20px] bg-control" />
+          <div key={i} className={ui.card + " p-5"}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="h-4 w-40 animate-pulse rounded-full bg-control" />
+              <div className="h-3 w-16 animate-pulse rounded-full bg-control" />
+            </div>
+            <div className="mt-4 h-3.5 w-52 animate-pulse rounded-full bg-control" />
+          </div>
         ))}
       </div>
     );

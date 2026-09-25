@@ -102,3 +102,36 @@
 - Review-queue chip counts are scoped by adapter but never by status: a status
   chip that counted only its own status would just echo the number it filters
   to. `listDrafts` derives both from `scopedWhere`.
+- The mobile drawer traps focus, wraps at both ends, and restores focus to the
+  hamburger on close. `role="dialog"`/`aria-modal` live on the overlay wrapper,
+  not the inner `<nav>`: on `<nav>` the dialog role would replace its navigation
+  landmark. Do not move it.
+- The review-queue unit `<select>` values are `release::unitId`, and the release
+  suffix in the label only renders for unit ids that appear under more than one
+  release (`ambiguousUnits`). Two releases can both print section `2.2`; without
+  the release the rows are indistinguishable and the filter is ambiguous.
+- Focus-ring audits must advance with real Tab presses. Programmatic `.focus()`
+  never matches `:focus-visible`, so it reports every control as ringless — a
+  false positive, same family as the `outline-none` grep warning above.
+- `DESIGN.md`'s palette has three below-AA small-text pairs (`slate-light` 2.72,
+  `amber` 2.48, `slate` 4.36). They are canonical — do not "fix" them by
+  changing the tokens. Satisfy architecture §85 instead by never letting colour
+  be the only channel: every tinted status carries a text label. The draft
+  status dot is `aria-hidden` beside its label for exactly this reason.
+- `upsertByContentHash` reconciles concept links explicitly instead of putting
+  `concepts` in the `update` payload. Two traps there: Prisma turns a nested
+  `create` under `update` into a plain INSERT, so a second import trips the
+  `(questionId, conceptId)` unique constraint; and dropping `concepts` from the
+  update altogether leaves the links stale when the hash matches a row that
+  carries different concepts — `contentHash` covers statement/type/correctAnswer
+  only. The upsert is idempotent and re-points the links on every call.
+- Integration tests run against the dev database and leave rows behind: they
+  create a `SyllabusVersion` per run plus `QM`-coded subjects, users named
+  `quiz-mastery-*@example.com`, and questions with a `source` of `test`. They
+  pollute counts (concepts, subjects) and, because `contentHash` ignores
+  subject, a leftover question can collide with a fixed-statement test. Clean up
+  after a `RUN_INTEGRATION_TESTS=1` run.
+- `pgstart.mjs` **wipes** `/tmp/gatepgdata` and re-seeds — it is a one-shot, not
+  a start-if-needed. For normal work use `pgkeep.mjs`, which reuses the existing
+  cluster. Running `pgstart.mjs` by mistake destroys the generated question bank;
+  `node --import tsx --env-file=.env genbank.mjs` rebuilds it (120 questions).

@@ -180,6 +180,22 @@ The unit list is scoped to the selected source and reloaded when the source
 changes; a unit that does not exist in the new scope resets the filter to
 "All units" rather than showing an empty queue.
 
+### The unit filter is release-scoped
+
+Two releases of the same source both print a section `1.1`. A filter keyed on
+the unit alone would return both, so a reviewer who picked `1.1` from
+`gatecse-2026` would silently be looking at `gatecse-2027`'s questions too.
+
+So the selector's value carries the release as well
+(`gatecse-2026::volume1:2.2`), and the request sends `release` alongside `unit`.
+`listStagedUnits` still returns one row per (release, unit) pair — they *are*
+distinct bodies of questions — and the UI keeps both keys together rather than
+letting the option list collapse them.
+
+`tests/integration/draft-review.test.ts` pins this: it stages a `7.7` in two
+releases and asserts each filter returns only its own. Removing the release
+clause from the query makes that test fail, which is the point.
+
 ---
 
 ## 6. Serverless constraints
@@ -198,6 +214,22 @@ than a bundler workaround: routes never import the parser. Importing happens in
 is writable. This is fine as-is because nothing in a serverless invocation
 downloads a PDF, but it is the second reason the import must not move into a
 route without that change being made deliberately.
+
+### Deployment checklist
+
+- `vercel-build` runs `prisma generate && prisma migrate deploy && next build`,
+  so the `sourceUnitId` / `sourceUnitLabel` migration must be pushed before the
+  deploy — it is, in this branch.
+- `GITHUB_TOKEN` should be set in the Vercel project to raise the release-listing
+  rate limit from 60 to 5000 requests/hour. The cataloged-release path does not
+  call GitHub at all, so a missing token only affects the release dropdown.
+- `server/domains/ingestion/catalog/gopdfs-units.json` must stay in the repo: it
+  is the deployed catalog, and Vercel does not run `build-unit-catalog.ts`.
+- A production build was run locally (`npx next build` / `npx next start`) and
+  the catalog route served in ~0.2 s with no worker error. Deploying to a live
+  Vercel project was not performed from here — there is no Vercel token in this
+  environment and no linked `.vercel/project.json`, so that step is on the
+  maintainer (push to the default branch, or `vercel --prod` after `vercel link`).
 
 ---
 
@@ -254,8 +286,9 @@ choosing where to start.
 ## 9. Tests
 
 ```
-tests/unit/ingestion-unit-grouping.test.ts   13 tests  grouping + id resolution
-tests/unit/ingestion-unit-catalog.test.ts     9 tests  committed catalog integrity
+tests/unit/ingestion-unit-grouping.test.ts    13 tests  grouping + id resolution
+tests/unit/ingestion-unit-catalog.test.ts      9 tests  committed catalog integrity
+tests/integration/draft-review.test.ts         4 tests  unit filtering (DB-backed)
 ```
 
 The grouping tests are the important ones: they pin the two failures that are
@@ -263,3 +296,9 @@ otherwise silent — a section with no TOC row being dropped instead of imported
 and section ids colliding across volumes. The resolution tests pin the ambiguity
 refusal, which is the difference between an error message and importing the
 wrong subject's questions.
+
+The integration tests need a seeded database and are skipped by default:
+
+```bash
+RUN_INTEGRATION_TESTS=1 npx vitest run tests/integration/draft-review.test.ts
+```

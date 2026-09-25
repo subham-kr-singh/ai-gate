@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NAV_GROUPS, NAV_ITEMS, MOBILE_NAV_ITEMS, type NavKey } from "./nav";
 import { activeFromPath } from "./NavRail";
 
@@ -16,6 +16,8 @@ export function MobileNav({ active = "today", initial = "G" }: { active?: NavKey
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const current = activeFromPath(pathname) ?? active;
+  const panelRef = useRef<HTMLElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   // Also closes the drawer after a tapped link navigates.
   useEffect(() => setOpen(false), [pathname]);
@@ -23,14 +25,52 @@ export function MobileNav({ active = "today", initial = "G" }: { active?: NavKey
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;
+    // Captured now: the trigger never unmounts (it sits outside the drawer),
+    // so this is the same node the cleanup would read, just without depending
+    // on the ref still pointing at it later.
+    const trigger = triggerRef.current;
     document.body.style.overflow = "hidden";
+
+    // Without this the drawer is only visually modal: Tab walks straight out
+    // into the page behind it, which is still on screen and still reachable.
+    const focusables = () =>
+      Array.from(
+        panelRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      );
+
+    focusables()[0]?.focus();
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const items = focusables();
+      if (items.length === 0) return;
+      const first = items[0]!;
+      const last = items[items.length - 1]!;
+      const active = document.activeElement;
+      // Wrap at both ends, and pull focus back in if it escaped entirely —
+      // symmetrically, so a stray focus behind the overlay is corrected
+      // whichever direction the next Tab goes.
+      const escaped = !panelRef.current?.contains(active);
+      if (e.shiftKey && (active === first || escaped)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (active === last || escaped)) {
+        e.preventDefault();
+        first.focus();
+      }
     };
+
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previous;
       window.removeEventListener("keydown", onKey);
+      trigger?.focus();
     };
   }, [open]);
 
@@ -44,9 +84,11 @@ export function MobileNav({ active = "today", initial = "G" }: { active?: NavKey
           GATE AI
         </Link>
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
+          aria-controls="mobile-nav-drawer"
           aria-label={open ? "Close navigation" : "Open navigation"}
           className="flex h-9 w-9 items-center justify-center rounded-full text-ink hover:bg-control"
         >
@@ -57,7 +99,12 @@ export function MobileNav({ active = "today", initial = "G" }: { active?: NavKey
       </header>
 
       {open && (
-        <div className="fixed inset-0 z-40">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation"
+          className="fixed inset-0 z-40"
+        >
           <button
             type="button"
             aria-label="Close navigation"
@@ -65,6 +112,8 @@ export function MobileNav({ active = "today", initial = "G" }: { active?: NavKey
             onClick={() => setOpen(false)}
           />
           <nav
+            ref={panelRef}
+            id="mobile-nav-drawer"
             aria-label="All destinations"
             className="absolute inset-y-0 right-0 flex w-[min(20rem,85vw)] flex-col gap-6 overflow-y-auto border-l border-line bg-surface p-6"
           >

@@ -7,11 +7,45 @@ export async function findByContentHash(contentHash: string) {
 }
 
 export async function upsertByContentHash(data: Prisma.QuestionCreateInput) {
-  return db.question.upsert({
+  const { concepts, ...scalar } = data;
+  const question = await db.question.upsert({
     where: { contentHash: data.contentHash },
-    update: data,
+    update: scalar,
     create: data,
   });
+
+  // A row can already exist under this hash while `importQuestion` is given a
+  // conceptId it does not carry — the hash covers statement/type/correctAnswer
+  // only, so tests reusing a fixed statement collide with a leftover row whose
+  // subject or concepts differ. Reconcile the links explicitly instead of
+  // letting the update payload decide: `create` repeats the INSERT on the
+  // (questionId, conceptId) unique constraint on a second import, and dropping
+  // it leaves the concepts stale.
+  const wanted = new Set(
+    concepts?.create
+      ? (Array.isArray(concepts.create) ? concepts.create : [concepts.create]).map(
+          (link) => (link as { concept: { connect: { id: string } } }).concept.connect.id
+        )
+      : []
+  );
+  const held = await db.questionConcept.findMany({
+    where: { questionId: question.id },
+    select: { conceptId: true },
+  });
+  const missing = [...wanted].filter((id) => !held.some((row) => row.conceptId === id));
+  const extra = held.map((row) => row.conceptId).filter((id) => !wanted.has(id));
+
+  if (missing.length || extra.length) {
+    await db.$transaction([
+      db.questionConcept.deleteMany({ where: { questionId: question.id, conceptId: { in: extra } } }),
+      db.questionConcept.createMany({
+        data: missing.map((conceptId) => ({ questionId: question.id, conceptId })),
+        skipDuplicates: true,
+      }),
+    ]);
+  }
+
+  return question;
 }
 
 export async function search(filter: QuestionFilter) {

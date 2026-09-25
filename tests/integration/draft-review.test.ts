@@ -16,6 +16,7 @@ describe.skipIf(!shouldRun)("draft review", () => {
   let decide: typeof import("@/server/domains/ingestion/review.service").decide;
   let getDraft: typeof import("@/server/domains/ingestion/review.service").getDraft;
   let listDrafts: typeof import("@/server/domains/ingestion/review.service").listDrafts;
+  let listStagedUnits: typeof import("@/server/domains/ingestion/review.service").listStagedUnits;
 
   const tag = `review-test-${Date.now()}`;
   let subjectId: string;
@@ -40,11 +41,16 @@ describe.skipIf(!shouldRun)("draft review", () => {
     extracted?: unknown;
     validationErrors?: string[];
     contentHash?: string;
+    releaseTag?: string;
+    sourceUnitId?: string;
+    sourceUnitLabel?: string;
   } = {}) {
     return db.ingestedQuestionDraft.create({
       data: {
         sourceAdapterId: tag,
-        sourceReleaseTag: tag,
+        sourceReleaseTag: overrides.releaseTag ?? tag,
+        sourceUnitId: overrides.sourceUnitId ?? null,
+        sourceUnitLabel: overrides.sourceUnitLabel ?? null,
         rawBlockText: "raw text for the review test",
         extracted: (overrides.extracted ?? basePayload()) as object,
         validationErrors: overrides.validationErrors ?? [],
@@ -55,7 +61,9 @@ describe.skipIf(!shouldRun)("draft review", () => {
 
   beforeAll(async () => {
     ({ db } = await import("@/server/db/client"));
-    ({ decide, getDraft, listDrafts } = await import("@/server/domains/ingestion/review.service"));
+    ({ decide, getDraft, listDrafts, listStagedUnits } = await import(
+      "@/server/domains/ingestion/review.service"
+    ));
 
     const version = await db.syllabusVersion.findFirst({ where: { isActive: true } });
     if (!version) throw new Error("No active syllabus version — seed the database first.");
@@ -185,5 +193,65 @@ describe.skipIf(!shouldRun)("draft review", () => {
     // A filter value from the query string is not trusted as an enum.
     const result = await listDrafts({ status: "'; DROP TABLE", limit: 5 });
     expect(result.summary.total).toBeGreaterThan(0);
+  });
+
+  it("groups staged drafts by source unit and counts the ready ones", async () => {
+    await makeDraft({ sourceUnitId: "9.1", sourceUnitLabel: "Unit Nine", contentHash: `${tag}-u1a` });
+    await makeDraft({ sourceUnitId: "9.1", sourceUnitLabel: "Unit Nine", contentHash: `${tag}-u1b` });
+    // A blocked draft counts toward the unit total but not toward `ready`.
+    await makeDraft({
+      sourceUnitId: "9.2",
+      sourceUnitLabel: "Unit Nine Two",
+      validationErrors: ["Missing marks"],
+      contentHash: `${tag}-u2`,
+    });
+
+    const units = await listStagedUnits({ adapterId: tag, releaseTag: tag });
+    const byId = new Map(units.map((u) => [u.sourceUnitId, u]));
+
+    expect(byId.get("9.1")?.total).toBe(2);
+    expect(byId.get("9.1")?.ready).toBe(2);
+    expect(byId.get("9.1")?.sourceUnitLabel).toBe("Unit Nine");
+    expect(byId.get("9.2")?.total).toBe(1);
+    expect(byId.get("9.2")?.ready).toBe(0);
+  });
+
+  it("filters the queue by source unit", async () => {
+    await makeDraft({ sourceUnitId: "9.3", contentHash: `${tag}-u3a` });
+    await makeDraft({ sourceUnitId: "9.4", contentHash: `${tag}-u3b` });
+
+    const only93 = await listDrafts({ adapterId: tag, sourceUnitId: "9.3", limit: 50 });
+    expect(only93.drafts).toHaveLength(1);
+    expect(only93.drafts[0]!.sourceUnitId).toBe("9.3");
+  });
+
+  it("scopes a unit filter to one release, not every release printing that number", async () => {
+    // Two releases of the same source both print a section "7.7". A unit filter
+    // that ignored the release would return both, so a reviewer picking one
+    // would silently review the other's questions.
+    const other = `${tag}-other`;
+    await makeDraft({ releaseTag: tag, sourceUnitId: "7.7", contentHash: `${tag}-r1` });
+    await makeDraft({ releaseTag: other, sourceUnitId: "7.7", contentHash: `${tag}-r2` });
+
+    const scoped = await listDrafts({ adapterId: tag, releaseTag: tag, sourceUnitId: "7.7", limit: 50 });
+    expect(scoped.drafts).toHaveLength(1);
+    expect(scoped.drafts[0]!.sourceReleaseTag).toBe(tag);
+
+    const otherScoped = await listDrafts({
+      adapterId: tag,
+      releaseTag: other,
+      sourceUnitId: "7.7",
+      limit: 50,
+    });
+    expect(otherScoped.drafts).toHaveLength(1);
+    expect(otherScoped.drafts[0]!.sourceReleaseTag).toBe(other);
+  });
+
+  it("lists the same unit separately per release", async () => {
+    const units = await listStagedUnits({ adapterId: tag });
+    const sevenSeven = units.filter((u) => u.sourceUnitId === "7.7");
+    // Distinct rows, because they are distinct bodies of questions.
+    expect(sevenSeven).toHaveLength(2);
+    expect(new Set(sevenSeven.map((u) => u.releaseTag)).size).toBe(2);
   });
 });
