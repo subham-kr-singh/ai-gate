@@ -20,6 +20,9 @@ evidence, the phase and the time, so it can be replayed, tested and explained.
 4. Add these GitHub secrets for `backup.yml`: `DIRECT_URL`, `BACKUP_PASSPHRASE`, `B2_ENDPOINT`,
    `B2_BUCKET`, `B2_KEY_ID`, `B2_APP_KEY`. Run it once with **restore_test** ticked; a backup you have not restored is not a backup.
 5. `npm run dev`, open `/planner`, set your exam date. Everything else follows from that.
+6. Load the question bank: `npm run seed`, then
+   `npm run import:gateoverflow -- --source go-pdfs-json --write` (see
+   [Question import](#question-import-gate-overflow)).
 
 No new npm packages: `ts-fsrs`, `zod` and `date-fns` are already in the Part 0 `package.json`.
 
@@ -35,8 +38,42 @@ No new npm packages: `ts-fsrs`, `zod` and `date-fns` are already in the Part 0 `
 | `GET/PUT /api/planner/plan` | exam date, preparation start, soft pace targets |
 | `GET/POST /api/flashcards`, `POST /api/flashcards/:id/review` | queue, create, rate |
 | `GET /api/cron/daily`, `/api/cron/weekly` | Vercel Cron, bearer `CRON_SECRET` |
+| `GET /api/cron/questions` | Vercel Cron, weekly: import the latest GATE Overflow corpus |
+| `GET/POST /api/ingestion` | Which sources exist, bank size, run history; run an import |
 
 Point the nav rail at these: Today is `/planner`, and Flashcards and Reports get their own icons.
+
+## Question import (GATE Overflow)
+
+The question bank is filled from GATE Overflow's public corpus rather than hand-authored.
+Two sources are configured; both parse to the same shape and run through the same Zod
+validation every other writer uses.
+
+```bash
+npm run import:gateoverflow                                # dry run, official HTML source
+npm run import:gateoverflow -- --write                     # import it
+npm run import:gateoverflow -- --source go-pdfs-json --write
+```
+
+| Source | Content | Best for |
+|---|---|---|
+| `go-pdfs-html` | `GATEOverflow/GO-PDFs` release `book_filter6.html` | Official repo, published answer keys |
+| `go-pdfs-json` | `Mr-Nobody003/GATE` `data/formatted_all.json` | GATE CSE coverage, per-topic placement, NAT/MSQ |
+
+The JSON mirror is the better corpus in practice: it yields ~3,080 importable questions with
+per-concept placement against ~1,100 for the HTML, because it carries GATE CSE volumes plus a
+subtopic label on every question, whereas the HTML book is UGC-NET-weighted and chapter-level
+only. It is community-maintained with no licence file, so the official HTML remains the default
+for provenance; pass `--source go-pdfs-json` to use the mirror.
+
+Both are idempotent: the raw bytes are hashed, an unchanged corpus is a no-op, and a changed one
+updates existing rows in place by `contentHash`. Every run is recorded in `SourceIngestion` with
+what it imported, where it landed per unit, and why anything was skipped.
+
+GATE Overflow content is community-contributed and the repos carry no licence. This is treated as
+personal-use ingestion of publicly published material, and each imported question stores its
+`source`, `sourceUrl` and `license` for attribution. Do not redistribute it without GATE
+Overflow's permission.
 
 ## Adapter points (read this before the first build)
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/server/db/client";
 import { DPP_CONFIG_V1 } from "@/server/domains/dpp/dpp.config";
 import { generateTodaysDPP } from "@/server/domains/dpp/dpp.service";
+import { ingestGateOverflow } from "@/server/domains/gateoverflow/gateoverflow.service";
 import { ingestAllSources } from "@/server/domains/resources/resource.service";
 import { runDailyMaintenance } from "@/server/jobs/daily-maintenance";
 import { runMockMaintenance } from "@/server/jobs/mock-maintenance";
@@ -65,6 +66,14 @@ export async function GET(req: Request, { params }: { params: { job: string } })
     if (params.job === "resources") {
       const summary = await ingestAllSources();
       return NextResponse.json({ job: "resources", at: now.toISOString(), ...summary });
+    }
+
+    // Question-bank job: pull the latest GATE Overflow corpus. Idempotent —
+    // an unchanged upstream file is a no-op, so a weekly schedule keeps the
+    // bank current without duplicating rows.
+    if (params.job === "questions") {
+      const summary = await ingestGateOverflow();
+      return NextResponse.json({ job: "questions", at: now.toISOString(), ...summary });
     }
 
     if (params.job === "weekly") {

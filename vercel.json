@@ -2,6 +2,7 @@
   "crons": [
     { "path": "/api/cron/daily", "schedule": "30 20 * * *" },
     { "path": "/api/cron/weekly", "schedule": "0 21 * * 0" },
-    { "path": "/api/cron/resources", "schedule": "0 19 * * 0" }
+    { "path": "/api/cron/resources", "schedule": "0 19 * * 0" },
+    { "path": "/api/cron/questions", "schedule": "0 18 * * 0" }
   ]
 }

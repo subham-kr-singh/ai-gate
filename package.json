@@ -12,6 +12,7 @@
     "vercel-build": "prisma generate && next build",
     "seed": "tsx prisma/seed/index.ts",
     "import:questions": "tsx scripts/import-questions.ts",
+    "import:gateoverflow": "tsx scripts/import-gateoverflow.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
