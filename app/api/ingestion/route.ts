@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser, UnauthorizedError } from "@/server/auth/require";
-import { GATEOVERFLOW_SOURCES, DEFAULT_SOURCE_ID } from "@/server/domains/gateoverflow/gateoverflow.config";
+import { GATEOVERFLOW_SOURCES, DEFAULT_SOURCE_ID, AUTO_SOURCE_IDS } from "@/server/domains/gateoverflow/gateoverflow.config";
 import {
+  ingestAllGateOverflowSources,
   ingestGateOverflow,
   listIngestionHistory,
   questionBankSize,
@@ -20,6 +21,7 @@ export async function GET() {
     return NextResponse.json({
       sources: Object.values(GATEOVERFLOW_SOURCES),
       defaultSourceId: DEFAULT_SOURCE_ID,
+      autoSourceIds: AUTO_SOURCE_IDS,
       questionBankSize: total,
       history,
     });
@@ -34,18 +36,30 @@ export async function GET() {
 
 const runSchema = z.object({
   sourceId: z.string().min(1).optional(),
-  dryRun: z.boolean().default(false),
+  /** Defaults to true: an import must be asked for explicitly. */
+  dryRun: z.boolean().default(true),
   force: z.boolean().default(false),
 });
 
-/** POST /api/ingestion — run an import. Defaults to a dry run so the first
- * call is always safe: it reports what would be written and where, and only
- * an explicit `dryRun: false` touches the question bank. */
+/** POST /api/ingestion — run an import.
+ *
+ * Defaults to a dry run, so the first call is always safe: it reports what
+ * would be written and where, and only an explicit `dryRun: false` touches
+ * the question bank. Omitting `sourceId` imports every auto source, matching
+ * the CLI and the weekly cron. */
 export async function POST(req: NextRequest) {
   try {
     await requireUser();
     const body = await req.json().catch(() => ({}));
     const parsed = runSchema.parse(body ?? {});
+
+    if (!parsed.sourceId) {
+      const summary = await ingestAllGateOverflowSources({
+        dryRun: parsed.dryRun,
+        force: parsed.force,
+      });
+      return NextResponse.json({ summary });
+    }
 
     const summary = await ingestGateOverflow({
       sourceId: parsed.sourceId,

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { generalAptitudeSubject } from "@/prisma/seed/general-aptitude.data";
 import { syllabusSubjects } from "@/prisma/seed/syllabus.data";
 import {
+  AUTO_SOURCE_IDS,
   CHAPTER_MAP,
   CONCEPT_ALIASES,
+  DEFAULT_SOURCE_ID,
   GATEOVERFLOW_SOURCES,
   getSource,
 } from "@/server/domains/gateoverflow/gateoverflow.config";
@@ -65,6 +67,25 @@ describe("source config", () => {
   it("exposes an official and a structured source", () => {
     expect(GATEOVERFLOW_SOURCES["go-pdfs-html"]!.kind).toBe("html");
     expect(GATEOVERFLOW_SOURCES["go-pdfs-json"]!.kind).toBe("json");
+  });
+
+  it("defaults to the GATE CSE corpus, not the UGC-NET book", () => {
+    // The book HTML is UGC-NET CS material; defaulting to it would fill the
+    // bank with the wrong exam's questions.
+    expect(DEFAULT_SOURCE_ID).toBe("go-pdfs-json");
+    expect(getSource(DEFAULT_SOURCE_ID).kind).toBe("json");
+  });
+
+  it("schedules every auto source, since the corpora do not overlap", () => {
+    // Measured: zero shared GO post ids between the two sources, so importing
+    // only the default silently leaves half the bank unimported.
+    expect(AUTO_SOURCE_IDS).toContain("go-pdfs-json");
+    expect(AUTO_SOURCE_IDS).toContain("go-pdfs-html");
+    expect(new Set(AUTO_SOURCE_IDS).size).toBe(AUTO_SOURCE_IDS.length);
+  });
+
+  it("resolves every auto source id", () => {
+    for (const id of AUTO_SOURCE_IDS) expect(() => getSource(id)).not.toThrow();
   });
 
   it("throws a helpful error for an unknown source id", () => {

@@ -18,7 +18,7 @@
 import crypto from "node:crypto";
 import { questionInputSchema, type QuestionInput } from "@/server/domains/questions/question.schema";
 import { computeContentHash } from "@/server/domains/questions/question.service";
-import { DEFAULT_SOURCE_ID, MAX_STATEMENT_CHARS, getSource } from "./gateoverflow.config";
+import { AUTO_SOURCE_IDS, DEFAULT_SOURCE_ID, MAX_STATEMENT_CHARS, getSource } from "./gateoverflow.config";
 import { buildSyllabusIndex, placeQuestion, type SyllabusIndex } from "./gateoverflow.mapper";
 import { parseGateOverflowHtml, parseGateOverflowJson } from "./gateoverflow.parse";
 import * as repo from "./gateoverflow.repository";
@@ -283,4 +283,54 @@ export async function listIngestionHistory(limit = 20) {
 
 export async function questionBankSize(): Promise<number> {
   return repo.countQuestions();
+}
+
+export interface IngestAllSummary {
+  sources: IngestSummary[];
+  /** Sources whose fetch/parse/write threw; the rest still ran. */
+  failed: { sourceId: string; error: string }[];
+  totalImported: number;
+  totalUpdated: number;
+  totalSkipped: number;
+  staleRunsClosed: number;
+}
+
+/**
+ * Runs every source flagged `auto` in the config.
+ *
+ * The corpora are disjoint (the GATE CSE JSON mirror and the UGC-NET CS book
+ * share no GO post ids), so a schedule that pulls only the default leaves half
+ * the material unimported. Each source is isolated: one dead upstream host
+ * must not stop the others, which is why failures are collected rather than
+ * thrown.
+ */
+export async function ingestAllGateOverflowSources(options: { dryRun?: boolean; force?: boolean } = {}): Promise<IngestAllSummary> {
+  const staleRunsClosed = await repo.markStaleIngestions().catch(() => 0);
+
+  const sources: IngestSummary[] = [];
+  const failed: { sourceId: string; error: string }[] = [];
+
+  for (const sourceId of AUTO_SOURCE_IDS) {
+    try {
+      const summary = await ingestGateOverflow({
+        sourceId,
+        dryRun: options.dryRun,
+        force: options.force,
+      });
+      sources.push(summary);
+    } catch (err) {
+      const error = err instanceof Error ? err.message : "unknown error";
+      console.error(`[ingest] source ${sourceId} failed:`, error);
+      failed.push({ sourceId, error });
+    }
+  }
+
+  return {
+    sources,
+    failed,
+    totalImported: sources.reduce((n, s) => n + s.importedCount, 0),
+    totalUpdated: sources.reduce((n, s) => n + s.updatedCount, 0),
+    totalSkipped: sources.reduce((n, s) => n + s.skippedCount, 0),
+    staleRunsClosed,
+  };
 }

@@ -44,6 +44,28 @@ export async function listIngestions(limit = 20) {
   return db.sourceIngestion.findMany({ orderBy: { startedAt: "desc" }, take: limit });
 }
 
+/**
+ * Closes out `running` rows left behind by a process that died mid-import.
+ *
+ * A serverless function killed at the platform timeout never reaches the
+ * catch block, so the row it opened stays `running` forever and every later
+ * run looks like it is still in flight. Nothing else reads those rows for
+ * correctness (idempotency keys off `completed` runs only), but leaving them
+ * makes the run history — the one place an import can be audited — wrong.
+ */
+export async function markStaleIngestions(olderThanMinutes = 30) {
+  const cutoff = new Date(Date.now() - olderThanMinutes * 60_000);
+  const { count } = await db.sourceIngestion.updateMany({
+    where: { status: "running", startedAt: { lt: cutoff } },
+    data: {
+      status: "failed",
+      error: `Timed out or interrupted; no completion recorded within ${olderThanMinutes} minutes.`,
+      finishedAt: new Date(),
+    },
+  });
+  return count;
+}
+
 export async function countQuestions(): Promise<number> {
   return db.question.count();
 }

@@ -21,7 +21,7 @@ evidence, the phase and the time, so it can be replayed, tested and explained.
    `B2_BUCKET`, `B2_KEY_ID`, `B2_APP_KEY`. Run it once with **restore_test** ticked; a backup you have not restored is not a backup.
 5. `npm run dev`, open `/planner`, set your exam date. Everything else follows from that.
 6. Load the question bank: `npm run seed`, then
-   `npm run import:gateoverflow -- --source go-pdfs-json --write` (see
+   `npm run import:gateoverflow -- --write` (see
    [Question import](#question-import-gate-overflow)).
 
 No new npm packages: `ts-fsrs`, `zod` and `date-fns` are already in the Part 0 `package.json`.
@@ -38,7 +38,7 @@ No new npm packages: `ts-fsrs`, `zod` and `date-fns` are already in the Part 0 `
 | `GET/PUT /api/planner/plan` | exam date, preparation start, soft pace targets |
 | `GET/POST /api/flashcards`, `POST /api/flashcards/:id/review` | queue, create, rate |
 | `GET /api/cron/daily`, `/api/cron/weekly` | Vercel Cron, bearer `CRON_SECRET` |
-| `GET /api/cron/questions` | Vercel Cron, weekly: import the latest GATE Overflow corpus |
+| `GET /api/cron/questions` | Vercel Cron, weekly: import every source below |
 | `GET/POST /api/ingestion` | Which sources exist, bank size, run history; run an import |
 
 Point the nav rail at these: Today is `/planner`, and Flashcards and Reports get their own icons.
@@ -50,25 +50,36 @@ Two sources are configured; both parse to the same shape and run through the sam
 validation every other writer uses.
 
 ```bash
-npm run import:gateoverflow                                # dry run, official HTML source
-npm run import:gateoverflow -- --write                     # import it
-npm run import:gateoverflow -- --source go-pdfs-json --write
+npm run import:gateoverflow                                # dry run, all auto sources
+npm run import:gateoverflow -- --write                     # import them
+npm run import:gateoverflow -- --source go-pdfs-html --write
 ```
 
-| Source | Content | Best for |
+| Source | Content | Notes |
 |---|---|---|
-| `go-pdfs-html` | `GATEOverflow/GO-PDFs` release `book_filter6.html` | Official repo, published answer keys |
-| `go-pdfs-json` | `Mr-Nobody003/GATE` `data/formatted_all.json` | GATE CSE coverage, per-topic placement, NAT/MSQ |
+| `go-pdfs-json` | `Mr-Nobody003/GATE` `data/formatted_all.json` | GATE CSE corpus, per-concept placement, NAT/MSQ. **Default.** |
+| `go-pdfs-html` | `GATEOverflow/GO-PDFs` release `book_filter6.html` | Official repo, published answer keys. UGC-NET CS material despite the name. |
 
-The JSON mirror is the better corpus in practice: it yields ~3,080 importable questions with
-per-concept placement against ~1,100 for the HTML, because it carries GATE CSE volumes plus a
-subtopic label on every question, whereas the HTML book is UGC-NET-weighted and chapter-level
-only. It is community-maintained with no licence file, so the official HTML remains the default
-for provenance; pass `--source go-pdfs-json` to use the mirror.
+**The two sources do not overlap.** Comparing on the GATE Overflow post id — the real identity of
+a question, since the book reformats statement text — they share *zero* questions: the book is
+UGC-NET CS (`gateoverflow.in/55603/ugc-net-cse-june-2012-...`) while the mirror is GATE CSE
+(`gateoverflow.in/1457`). They are complements, not duplicates, so the scheduled import runs
+**both**; importing only one silently leaves that source's material missing from the bank.
 
-Both are idempotent: the raw bytes are hashed, an unchanged corpus is a no-op, and a changed one
+`go-pdfs-json` is the default and the better corpus — ~3,070 importable questions with per-concept
+placement against ~1,100 chapter-level ones for the HTML — because it carries the GATE CSE volumes
+plus a subtopic label on every question. The book is retained for the answer keys it publishes and
+for its breadth of older material.
+
+The scheduled job is `/api/cron/questions` (weekly). It imports every source marked `auto` in
+`gateoverflow.config.ts`, and isolates failures: one dead upstream host does not stop the others.
+Add a new mirror by adding it to that config with `auto: true`.
+
+An import is idempotent: the raw bytes are hashed, an unchanged corpus is a no-op, and a changed one
 updates existing rows in place by `contentHash`. Every run is recorded in `SourceIngestion` with
-what it imported, where it landed per unit, and why anything was skipped.
+what it imported, where it landed per unit, and why anything was skipped. A `running` row left by a
+process killed at the platform timeout is closed out as `failed` on the next run, so the history
+stays readable.
 
 GATE Overflow content is community-contributed and the repos carry no licence. This is treated as
 personal-use ingestion of publicly published material, and each imported question stores its

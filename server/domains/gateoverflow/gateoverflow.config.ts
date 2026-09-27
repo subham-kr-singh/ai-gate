@@ -59,28 +59,48 @@ export interface GateOverflowSource {
   license: string | null;
   /** Human-readable note on why this source is (or is not) the default. */
   note: string;
+  /** Whether the scheduled import pulls this source. See AUTO_SOURCE_IDS. */
+  auto?: boolean;
 }
 
 export const GATEOVERFLOW_SOURCES: Record<string, GateOverflowSource> = {
-  "go-pdfs-html": {
-    id: "go-pdfs-html",
-    label: "GATE Overflow — official book HTML (GO-PDFs release)",
-    kind: "html",
-    url: "https://github.com/GATEOverflow/GO-PDFs/releases/download/ugcnet/book_filter6.html",
-    license: "GATE Overflow community content — personal use, attribute gateoverflow.in",
-    note: "Official repo, answer keys present, one file. Chapter-level topics only.",
-  },
   "go-pdfs-json": {
     id: "go-pdfs-json",
-    label: "GATE Overflow volumes as structured JSON (community mirror)",
+    label: "structured JSON mirror (Mr-Nobody003/GATE)",
     kind: "json",
     url: "https://raw.githubusercontent.com/Mr-Nobody003/GATE/main/data/formatted_all.json",
     license: "GATE Overflow community content (mirrored) — personal use, attribute gateoverflow.in",
-    note: "Better structure (qtype, LaTeX, NAT ranges) and GATE CSE coverage; community-maintained, no licence file.",
+    note: "GATE CSE corpus, best structure (qtype, LaTeX, NAT ranges) and subtopic labels. Community-maintained, no licence file.",
+    auto: true,
+  },
+  "go-pdfs-html": {
+    id: "go-pdfs-html",
+    label: "official book HTML (GATEOverflow/GO-PDFs)",
+    kind: "html",
+    url: "https://github.com/GATEOverflow/GO-PDFs/releases/download/ugcnet/book_filter6.html",
+    license: "GATE Overflow community content — personal use, attribute gateoverflow.in",
+    note: "Official repo with published answer keys. Despite the filename this is the UGC-NET CS book, not the GATE CSE one, so it carries no GO ids in common with the JSON mirror — the two are complementary, not duplicates. Chapter-level topics only.",
+    auto: true,
   },
 };
 
-export const DEFAULT_SOURCE_ID = "go-pdfs-html";
+/**
+ * The source used when a caller names none. This is the GATE CSE corpus,
+ * because that is the exam the app prepares for: the official book HTML is
+ * UGC-NET CS material, so defaulting to it would fill the bank with the wrong
+ * paper. Both are imported on a schedule (see AUTO_SOURCE_IDS).
+ */
+export const DEFAULT_SOURCE_ID = "go-pdfs-json";
+
+/**
+ * Sources the scheduled import pulls, in order. They are disjoint corpora —
+ * measured at zero shared GO post ids — so importing only one silently
+ * halves the bank. Kept as data rather than a hard-coded list in the job so
+ * adding a mirror is a config change.
+ */
+export const AUTO_SOURCE_IDS: string[] = Object.values(GATEOVERFLOW_SOURCES)
+  .filter((s) => s.auto)
+  .map((s) => s.id);
 
 export function getSource(id: string): GateOverflowSource {
   const source = GATEOVERFLOW_SOURCES[id];
