@@ -26,6 +26,7 @@ import {
 } from "@/server/domains/gateoverflow/gateoverflow.service";
 import { db } from "@/server/db/client";
 
+/** Read import flags, defaulting to a dry run of all auto sources; help prints usage and exits. */
 function parseArgs(argv: string[]) {
   const flags = { write: false, force: false, sourceId: null as string | null };
   for (let i = 0; i < argv.length; i += 1) {
@@ -44,6 +45,7 @@ function parseArgs(argv: string[]) {
   return flags;
 }
 
+/** Print one source’s counts, skip reasons and sampled errors, or its unchanged status. */
 function report(summary: IngestSummary, dryRun: boolean) {
   if (summary.status === "unchanged") {
     console.log(`\n${summary.sourceId}: upstream unchanged since the last completed import — nothing to do.`);
@@ -70,6 +72,7 @@ function report(summary: IngestSummary, dryRun: boolean) {
   }
 }
 
+/** Run the requested sources, print totals and set a failing exit code when an auto source throws. */
 async function main() {
   const flags = parseArgs(process.argv.slice(2));
   const dryRun = !flags.write;

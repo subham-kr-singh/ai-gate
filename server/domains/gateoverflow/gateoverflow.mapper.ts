@@ -42,6 +42,7 @@ export interface SyllabusIndex {
   subjects: SubjectNode[];
 }
 
+/** Normalise case, spacing and punctuation for syllabus label comparisons. */
 function normaliseKey(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ").replace(/[^a-z0-9 /]/g, "");
 }
@@ -101,6 +102,7 @@ export type PlacementResult =
   | { status: "skipped-chapter" }
   | { status: "unmapped-unit" };
 
+/** Match a subtopic by alias or normalised name, then try a prefix match; return null if absent. */
 function findConcept(unit: UnitNode, subtopic: string | null): ConceptNode | null {
   if (!subtopic) return null;
   const key = normaliseKey(subtopic);
@@ -139,6 +141,7 @@ function findUnitForSubtopic(subject: SubjectNode, subtopic: string | null): {
  * has to come from the question's own tags. */
 const CATCH_ALL_CHAPTERS = new Set(["Unknown Category", "Others: Others"]);
 
+/** Resolve a chapter’s subject, using question tags only for catch-all chapters. */
 function resolveSubjectCode(chapter: string, tags: string[]): string | null {
   const mapping = CHAPTER_MAP[chapter];
   if (mapping) return mapping.subjectCode;
@@ -150,6 +153,8 @@ function resolveSubjectCode(chapter: string, tags: string[]): string | null {
   return null;
 }
 
+/** Map a question to syllabus ids, preferring a matched concept’s unit over the chapter default.
+ * Return a skip or unmapped status when the chapter or syllabus cannot be used. */
 export function placeQuestion(
   index: SyllabusIndex,
   chapter: string,

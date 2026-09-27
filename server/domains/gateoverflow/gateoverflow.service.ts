@@ -57,6 +57,8 @@ export interface IngestSummary {
   dryRun: boolean;
 }
 
+/** Fetch an uncached corpus through the supplied fetch implementation with a 60-second timeout.
+ * Return the response text; propagate fetch failures and throw for non-success HTTP responses. */
 async function fetchText(url: string, fetchImpl: typeof fetch): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -126,6 +128,8 @@ export function buildQuestionInput(
   return { input: parsed.data };
 }
 
+/** Place and validate rows, then count eligible rows in a dry run or upsert them.
+ * Update the supplied unit and skip tallies; collect write failures with up to 20 error messages. */
 async function processQuestions(
   questions: ParsedQuestion[],
   index: SyllabusIndex,
@@ -137,6 +141,7 @@ async function processQuestions(
   let failed = 0;
   const errors: string[] = [];
 
+  /** Increment the shared skip count for the supplied reason. */
   const tallySkip = (reason: SkipReason) => {
     options.skipReasons[reason] = (options.skipReasons[reason] ?? 0) + 1;
   };
@@ -177,6 +182,9 @@ async function processQuestions(
   return { imported, updated, failed, errors };
 }
 
+/** Fetch, parse and import one configured source, returning counts and diagnostics.
+ * Writes by default; dryRun validates without writes, and force bypasses the unchanged-content check.
+ * Persist run history for writes and propagate fatal fetch, parse or persistence errors. */
 export async function ingestGateOverflow(options: IngestOptions = {}): Promise<IngestSummary> {
   const source = getSource(options.sourceId ?? DEFAULT_SOURCE_ID);
   const fetchImpl = options.fetchImpl ?? fetch;
@@ -186,6 +194,7 @@ export async function ingestGateOverflow(options: IngestOptions = {}): Promise<I
   const raw = await fetchText(source.url, fetchImpl);
   const contentHash = crypto.createHash("sha256").update(raw).digest("hex");
 
+  /** Build the zero-count summary returned when a completed import already has these bytes. */
   const emptySummary = (): IngestSummary => ({
     sourceId: source.id,
     sourceUrl: source.url,
@@ -277,10 +286,12 @@ export async function ingestGateOverflow(options: IngestOptions = {}): Promise<I
   }
 }
 
+/** Return the most recent ingestion runs, capped by limit. */
 export async function listIngestionHistory(limit = 20) {
   return repo.listIngestions(limit);
 }
 
+/** Return the total number of questions across all sources and statuses. */
 export async function questionBankSize(): Promise<number> {
   return repo.countQuestions();
 }

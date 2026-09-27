@@ -11,6 +11,7 @@ export async function findCompletedIngestion(sourceId: string, contentHash: stri
   });
 }
 
+/** Create a running ingestion record with the source provenance and raw-content hash. */
 export async function startIngestion(data: {
   sourceId: string;
   sourceUrl: string;
@@ -21,6 +22,7 @@ export async function startIngestion(data: {
   return db.sourceIngestion.create({ data: { ...data, status: "running" } });
 }
 
+/** Store a run’s final status, counters and report, setting its completion time to now. */
 export async function finishIngestion(
   id: string,
   data: {
@@ -40,6 +42,7 @@ export async function finishIngestion(
   });
 }
 
+/** Return at most limit ingestion records, ordered by most recent start time. */
 export async function listIngestions(limit = 20) {
   return db.sourceIngestion.findMany({ orderBy: { startedAt: "desc" }, take: limit });
 }
@@ -66,6 +69,7 @@ export async function markStaleIngestions(olderThanMinutes = 30) {
   return count;
 }
 
+/** Count all questions in the bank, regardless of source or approval status. */
 export async function countQuestions(): Promise<number> {
   return db.question.count();
 }

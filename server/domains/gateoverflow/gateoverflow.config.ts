@@ -102,6 +102,7 @@ export const AUTO_SOURCE_IDS: string[] = Object.values(GATEOVERFLOW_SOURCES)
   .filter((s) => s.auto)
   .map((s) => s.id);
 
+/** Return a configured source by id, throwing with the known ids when no source matches. */
 export function getSource(id: string): GateOverflowSource {
   const source = GATEOVERFLOW_SOURCES[id];
   if (!source) {

@@ -11,6 +11,7 @@ const placement = {
 
 const source = { id: "test", label: "Test", license: "personal use" };
 
+/** Build a valid parsed MCQ fixture with field overrides for individual validation cases. */
 function parsed(overrides: Partial<ParsedQuestion> = {}): ParsedQuestion {
   return {
     sourceQuestionId: "1",

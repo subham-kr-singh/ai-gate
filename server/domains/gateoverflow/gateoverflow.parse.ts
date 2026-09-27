@@ -48,6 +48,7 @@ const NAMED_ENTITIES: Record<string, string> = {
   deg: "°",
 };
 
+/** Decode supported named and numeric HTML entities, preserving unrecognised or invalid matches. */
 export function decodeEntities(input: string): string {
   return input.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);/g, (match, entity: string) => {
     if (entity.startsWith("#")) {
@@ -83,6 +84,8 @@ function stripControlChars(input: string): string {
   return input.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
 }
 
+/** Convert corpus markup to plain text with figure markers and line breaks.
+ * Remove scripts, styles and unsupported control characters, then collapse excess whitespace. */
 export function htmlToText(html: string): string {
   let text = html.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, " ");
   text = normaliseMedia(text);
@@ -132,6 +135,8 @@ export function splitProvenance(raw: string): {
   return { subtopic, year, body: rest.length > 0 ? rest : raw };
 }
 
+/** Read choices from the last ordered list with two to six items.
+ * Return its HTML match so callers can remove it from the statement, or empty choices and null. */
 function extractOptions(html: string): { options: ParsedOption[]; match: RegExpMatchArray | null } {
   const ols = [...html.matchAll(/<ol\b[^>]*>([\s\S]*?)<\/ol>/gi)];
   for (let i = ols.length - 1; i >= 0; i -= 1) {
@@ -181,6 +186,7 @@ export function parseAnswerKeyText(raw: string): {
   return { answer: unique, kind: "MSQ" };
 }
 
+/** Strip a chapter heading’s leading number and trailing parenthesised question count. */
 function normaliseChapterName(raw: string): string {
   return raw
     .replace(/^\s*\d+\.?\s*/, "")
@@ -188,6 +194,8 @@ function normaliseChapterName(raw: string): string {
     .trim();
 }
 
+/** Parse book chapters into questions and join answers by GO post id.
+ * Skip blocks without question text or an id; retain unknown answers for downstream reporting. */
 export function parseGateOverflowHtml(html: string): ParsedQuestion[] {
   const keys = parseHtmlAnswerKeys(html);
   const questions: ParsedQuestion[] = [];
@@ -261,10 +269,13 @@ interface JsonQuestion {
   solution?: unknown;
 }
 
+/** Return a string value unchanged, or null for any other type. */
 function asString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+/** Parse one mirror row, returning null when its string id or question text is missing.
+ * Normalise choice answers and numeric ranges; retain unusable answers as UNKNOWN. */
 function parseJsonQuestion(raw: JsonQuestion, chapter: string): ParsedQuestion | null {
   const statementRaw = asString(raw.question_text);
   const sourceUrl = asString(raw.solution);
@@ -279,6 +290,7 @@ function parseJsonQuestion(raw: JsonQuestion, chapter: string): ParsedQuestion |
     const range = raw.answer;
     const low = typeof range === "object" && range !== null ? (range as { low?: unknown }).low : undefined;
     const high = typeof range === "object" && range !== null ? (range as { high?: unknown }).high : undefined;
+    /** Accept only finite numbers as numeric-answer range bounds. */
     const isNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
     if (!isNumber(low) || !isNumber(high)) {
       return {
@@ -365,6 +377,8 @@ interface JsonVolume {
   chapters?: unknown;
 }
 
+/** Flatten mirror volumes and chapters into parsed questions.
+ * Throw when the top-level volumes object is missing; skip unnamed chapters and incomplete rows. */
 export function parseGateOverflowJson(payload: unknown): ParsedQuestion[] {
   const volumes = (payload as { volumes?: unknown } | null)?.volumes;
   if (!volumes || typeof volumes !== "object") {
