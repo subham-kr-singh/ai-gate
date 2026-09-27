@@ -1157,3 +1157,37 @@ model TutorActionLog {
 
   @@index([userId, createdAt])
 }
+
+// ---------------------------------------------------------------------
+// Part 9 — Question-source ingestion (GATE Overflow and mirrors)
+//
+// The question bank is filled by importing third-party public corpora, not
+// by hand-authoring. Each import run records what it read (source, upstream
+// release/commit, licence), what it wrote and what it could not map, so a
+// corpus can be re-imported idempotently and audited later. Question rows
+// stay the single source of truth for content; this table is provenance.
+// ---------------------------------------------------------------------
+
+model SourceIngestion {
+  id            String   @id @default(cuid())
+  sourceId      String // e.g. "go-pdfs-html", "go-pdfs-json"
+  sourceUrl     String
+  license       String?
+  upstreamRef   String? // release tag, or commit sha for a git-backed source
+  contentHash   String // sha256 of the raw fetched bytes
+  status        String // completed | failed
+  questionCount Int      @default(0)
+  importedCount Int      @default(0)
+  updatedCount  Int      @default(0)
+  skippedCount  Int      @default(0)
+  failedCount   Int      @default(0)
+  error         String?
+  // Per-reason tally of rows that could not be imported (unmapped chapter,
+  // missing answer key, no options, …) — the audit trail for "what did this
+  // corpus not give me", which is more useful than a single failure count.
+  report        Json     @default("{}")
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+
+  @@index([sourceId, startedAt])
+}

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/server/db/client";
 import { DPP_CONFIG_V1 } from "@/server/domains/dpp/dpp.config";
 import { generateTodaysDPP } from "@/server/domains/dpp/dpp.service";
+import { ingestAllGateOverflowSources } from "@/server/domains/gateoverflow/gateoverflow.service";
 import { ingestAllSources } from "@/server/domains/resources/resource.service";
 import { runDailyMaintenance } from "@/server/jobs/daily-maintenance";
 import { runMockMaintenance } from "@/server/jobs/mock-maintenance";
@@ -65,6 +66,16 @@ export async function GET(req: Request, { params }: { params: { job: string } })
     if (params.job === "resources") {
       const summary = await ingestAllSources();
       return NextResponse.json({ job: "resources", at: now.toISOString(), ...summary });
+    }
+
+    // Question-bank job: pull every auto source (the GATE CSE JSON mirror and
+    // the UGC-NET book HTML). They are disjoint corpora, so importing only the
+    // default would leave half the bank empty. Idempotent — an unchanged
+    // upstream file is a no-op — so a weekly schedule keeps the bank current
+    // without duplicating rows.
+    if (params.job === "questions") {
+      const summary = await ingestAllGateOverflowSources();
+      return NextResponse.json({ job: "questions", at: now.toISOString(), ...summary });
     }
 
     if (params.job === "weekly") {
